@@ -1,0 +1,58 @@
+// ============================================================================
+//  خوادم الأدوات (MCP) التي يحصل عليها Claude Code في كل جلسة
+//  الصيغة هي نفسها صيغة .mcp.json في Claude Code، مع ثلاثة مفاتيح إضافية:
+//    "enabled": false            لتعطيل خادم دون حذفه
+//    "only_with_gateway": "..."  لتفعيله فقط مع بوابة معيّنة
+//    "description": "..."        ملاحظة لك (لا تُرسل إلى Claude Code)
+//  متغيرات تُستبدل تلقائياً:
+//    {{python}} {{root}} {{data}} {{db}} {{project}}
+//    {{gateway}} {{gateway_url}} {{gateway_token}} {{model}}
+//    {{secret:قسم.مفتاح}} (من data/secrets.json)  {{env:اسم}} (من متغيرات البيئة)
+// ============================================================================
+{
+  "mcpServers": {
+
+    "allinone": {
+      "description": "Python tools: memory, ask_model, gateway info + everything in claude/mcp/tools/",
+      "command": "{{python}}",
+      "args": ["{{root}}/claude/mcp/allinone_tools.py"],
+      "env": {
+        "ALLINONE_ROOT": "{{root}}",
+        "ALLINONE_DB": "{{db}}",
+        "ALLINONE_GATEWAY": "{{gateway}}",
+        "ALLINONE_GATEWAY_TITLE": "{{gateway_title}}",
+        "ALLINONE_GATEWAY_URL": "{{gateway_url}}",
+        "ALLINONE_GATEWAY_TOKEN": "{{gateway_token}}",
+        "ALLINONE_MODEL": "{{model}}",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+
+    // أدوات FreeLLMAPI نفسها (حالة المزودين، الاستهلاك، استراتيجية التوجيه...)
+    // قبل التفعيل: شغّل "Agent compatibility → MCP" من صفحة Keys في لوحة تحكم FreeLLMAPI
+    "freellmapi": {
+      "enabled": false,
+      "only_with_gateway": "freellmapi",
+      "type": "http",
+      "url": "{{gateway_url}}/mcp",
+      "headers": { "Authorization": "Bearer {{gateway_token}}" }
+    },
+
+    // أدوات OmniRoute نفسها (أكثر من 100 أداة لإدارة المزودين والـ combos والذاكرة...)
+    // قبل التفعيل:
+    //   1) فعّل خادم MCP من لوحة تحكم OmniRoute (/dashboard/mcp) واختر streamable-http
+    //   2) أنشئ API Key فيه صلاحية Management من Dashboard → API Keys
+    //   3) احفظه بالأمر: allinone key omniroute-manage <KEY>
+    "omniroute": {
+      "enabled": false,
+      "only_with_gateway": "omniroute",
+      "type": "http",
+      "url": "{{gateway_url}}/api/mcp/stream",
+      "headers": { "Authorization": "Bearer {{secret:omniroute-manage.api_key}}" }
+    }
+
+    // أضف هنا أي خادم MCP آخر، مثل:
+    // "github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/",
+    //             "headers": { "Authorization": "Bearer {{env:GITHUB_TOKEN}}" } }
+  }
+}

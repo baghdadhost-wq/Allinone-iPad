@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Allinone · الأسئلة</title>
+<style>
+*{box-sizing:border-box}body{font:18px/1.65 system-ui,sans-serif;margin:auto;max-width:42rem;padding:1.5rem;color:#17242d;background:#f5f7f9}h1{font-size:1.8rem}label{display:block;margin:.8rem 0 .2rem}input,textarea,button{font:inherit;padding:.55rem .8rem;border:1px solid #8796a0;border-radius:.5rem;width:100%;background:white;color:inherit}button{margin-top:1rem;background:#164b5b;color:white;cursor:pointer}button:disabled{opacity:.65}output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;margin:1rem 0}
+</style>
+<h1>Allinone</h1><form id="connect" hidden><label for="address">عنوان الآيباد والمنفذ</label>
+<input id="address" dir="ltr" required placeholder="192.168.1.25:8743"><button>اتصل بالمضيف</button></form>
+<form id="chat" hidden><label for="code">رمز الاتصال الظاهر على المضيف</label><input id="code" dir="ltr" type="password" required autocomplete="off">
+<label for="question">سؤالك</label><textarea dir="auto" id="question" rows="5" required></textarea><button id="send">إرسال</button></form>
+<output id="answer" aria-live="polite" dir="auto"></output>
+<script>
+const el = id => document.getElementById(id);
+const hosted = location.protocol === 'https:';
+el(hosted ? 'chat' : 'connect').hidden = false;
+el('connect').onsubmit = event => {
+  event.preventDefault();
+  const raw = el('address').value.trim().replace(/^https:\/\//i, '').replace(/\/$/, '');
+  if (!/^(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?$/.test(raw)) {
+    el('answer').textContent = 'أدخل عنوان IPv4 الظاهر على المضيف'; return;
+  }
+  location.assign('https://' + raw + (raw.includes(':') ? '' : ':8743') + '/');
+};
+el('chat').onsubmit = async event => {
+  event.preventDefault(); el('send').disabled = true; el('answer').textContent = 'بانتظار الجواب…';
+  try {
+    const response = await fetch('/ask', {method:'POST', headers:{
+      'Content-Type':'application/json', Authorization:'Bearer ' + el('code').value.trim()
+    }, body:JSON.stringify({question:el('question').value})});
+    const data = await response.json(); el('answer').textContent = response.ok ? data.answer : data.error;
+  } catch { el('answer').textContent = 'انقطع الاتصال. تحقق من عنوان الآيباد وحالة المضيف'; }
+  finally { el('send').disabled = false; }
+};
+</script></html>

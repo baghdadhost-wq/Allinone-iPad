@@ -1,0 +1,8 @@
+{
+  "name": "allinone",
+  "description": "Allinone helpers: shared memory, gateway info and a code reviewer",
+  "version": "1.0.0",
+  "author": {
+    "name": "Allinone"
+  }
+}

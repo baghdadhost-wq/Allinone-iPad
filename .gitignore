@@ -1,0 +1,18 @@
+# Installed software and runtime data (managed by Allinone, never committed)
+/runtime/
+/data/
+
+# Personal settings
+/config/local.jsonc
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

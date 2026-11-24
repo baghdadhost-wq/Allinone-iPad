@@ -1,0 +1,20 @@
+name: AllinoneClient
+options:
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  AllinoneClient:
+    type: application
+    platform: iOS
+    sources:
+      - path: ../AllinoneClient.swiftpm/Client.swift
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone.client
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "0.1"
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بمضيف Allinone على شبكتك"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        SWIFT_VERSION: "5.0"

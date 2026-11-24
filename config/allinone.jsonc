@@ -1,0 +1,143 @@
+// ============================================================================
+//  Allinone — الإعدادات الرئيسية
+//  هذا الملف محفوظ في git. لإعداداتك الشخصية التي لا تريد رفعها، أنشئ
+//  config/local.jsonc بالبنية نفسها، وسيُدمج فوق هذا الملف تلقائياً.
+//  التعليقات (//) والفواصل الزائدة مسموحة.
+// ============================================================================
+{
+  // لغة الواجهة: "ar" أو "en"، أو "auto" ليسألك البرنامج في أول تشغيل
+  // (ويمكن تغييرها لاحقاً بالأمر: allinone lang en)
+  "language": "auto",
+
+  // البوابة المختارة افتراضياً في القائمة (تتغير تلقائياً لآخر بوابة استخدمتها)
+  "default_gateway": "omniroute",
+
+  // مجلد المشروع الافتراضي لـ Claude Code. إن تُرك فارغاً يُستخدم المجلد الذي شغّلت منه الأمر
+  "default_project": "",
+
+  // false: تُوقَف البوابة عند الخروج إن كان Allinone هو من شغّلها
+  "keep_gateway_running": false,
+
+  // مكان التثبيت والبيانات (نسبةً لمجلد المستودع). كلاهما مستثنى من git
+  "paths": {
+    "runtime": "runtime",   // البرامج المثبتة: Node.js والبوابتان وClaude Code
+    "data": "data"          // قواعد البيانات والسجلات والأسرار والذاكرة
+  },
+
+  // ---------------------------------------------------------------- Node.js
+  // البوابتان تتطلبان Node.js بإصدار 22.22.2 أو أحدث ضمن 22.x، أو أي إصدار 24.x.
+  // "portable": ينزّل Allinone نسخة رسمية من Node 24 داخل runtime/node (بعد التحقق من البصمة)
+  //             ويستخدمها لعملياته فقط دون أن يمس Node المثبت على جهازك
+  // "system":   يستخدم node الموجود في PATH
+  "node": {
+    "mode": "portable",
+    "version": "24"          // "24" تعني أحدث إصدار من 24.x، ويمكن كتابة رقم كامل مثل "24.11.1"
+  },
+
+  // ---------------------------------------------------------------- البوابات
+  // يظهر في القائمة كل ما هنا وقيمة "enabled" فيه true.
+  // يمكنك إضافة بوابة ثالثة بالنوع "custom" (انظر المثال المعطّل في الأسفل).
+  "gateways": {
+
+    "omniroute": {
+      "title": "OmniRoute",
+      "enabled": true,
+      "host": "127.0.0.1",   // الاستماع على هذا الجهاز فقط (أكثر أماناً)
+      "port": 20128,
+      "install": {
+        // "npm": حزمة جاهزة ومبنية مسبقاً (سريع، ويُنصح به)
+        // "source": من الكود المصدري إلى runtime/omniroute (للتعديل العميق، مشروع ضخم يحتاج ذاكرة كبيرة للبناء)
+        "mode": "npm",
+        "package": "omniroute",
+        "version": "3.8.54",   // ثبّتها أو اجعلها "latest". يرفعها الأمر: allinone update omniroute --latest
+        "repo": "https://github.com/diegosouzapw/OmniRoute.git",   // أو رابط نسختك المنسوخة (fork)
+        "ref": "v3.8.54"
+      },
+      // كيف يتصل Claude Code بهذه البوابة
+      "claude": {
+        "model": "auto",            // "auto" يعني أن OmniRoute يختار المزوّد. يمكن وضع معرّف مثل "glm/glm-5.2"
+        "opus_model": "",           // تخصيص نموذج لكل فئة يطلبها Claude Code (فارغ = نفس model)
+        "sonnet_model": "",
+        "haiku_model": "",          // يُستخدم للمهام الخلفية الخفيفة مثل عناوين الجلسات
+        "subagent_model": "",
+        "tiers_follow_model": true,
+        "env": {
+          // أي متغيرات إضافية لـ Claude Code مع هذه البوابة
+          "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "190000"
+        }
+      },
+      // اتركه فارغاً، إلا إذا فعّلت REQUIRE_API_KEY في OmniRoute.
+      // أنشئ المفتاح من Dashboard → API Keys، ثم احفظه بالأمر: allinone key omniroute <KEY>
+      "token": ""
+    },
+
+    "freellmapi": {
+      "title": "FreeLLMAPI",
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 3001,
+      "install": {
+        "mode": "source",    // FreeLLMAPI يُبنى دائماً من الكود المصدري، ويمكنك تعديله وحفظ تعديلاتك
+        "repo": "https://github.com/tashfeenahmed/freellmapi.git",
+        "ref": "v0.16.39"    // وسم الإصدار. اجعله "main" لتتبّع آخر نسخة
+      },
+      "claude": {
+        // "auto": موجّه FreeLLMAPI يختار. اجعله "" ليُطبَّق ربط نماذج Claude الذي تضبطه من Keys → Anthropic
+        "model": "auto",
+        "opus_model": "",
+        "sonnet_model": "",
+        "haiku_model": "",
+        "subagent_model": "",
+        "tiers_follow_model": true,
+        "env": {
+          "CLAUDE_CODE_AUTO_MODE_SERVER": "0"   // يُبقي "auto mode" في Claude Code يعمل عبر بوابة غير Anthropic
+        }
+      },
+      // المفتاح الموحّد freellmapi-… يُقرأ تلقائياً من قاعدة بيانات FreeLLMAPI.
+      // ضعه هنا أو بالأمر allinone key فقط إن أردت استخدام مفتاح آخر.
+      "token": ""
+    },
+
+    // مثال لبوابة ثالثة (معطّل): أي خادم يتكلم Anthropic Messages API،
+    // سواء كان يعمل على هذا الجهاز أو على جهاز آخر
+    "example-remote": {
+      "enabled": false,
+      "type": "custom",
+      "title": "My Gateway",
+      "base_url": "http://192.168.1.50:4000",
+      "token": "{{secret:example-remote.api_key}}",   // يُحفظ بالأمر: allinone key example-remote <KEY>
+      "health_path": "/",
+      // "start": { "command": ["litellm", "--port", "{{port}}"], "cwd": "{{data}}" },
+      "claude": { "model": "" }
+    }
+  },
+
+  // ------------------------------------------------------------ Claude Code
+  "claude": {
+    "install": {
+      // "npm": يُثبَّت محلياً داخل runtime/claude-code دون أن يمس أي تثبيت آخر
+      // "system": يستخدم الأمر claude الموجود في PATH (إن ثبّته بالمثبّت الرسمي)
+      "mode": "npm",
+      "package": "@anthropic-ai/claude-code",
+      "version": "latest"
+    },
+    // true: لـ Claude Code داخل Allinone إعدادات وسجلات مستقلة في data/claude-home،
+    // فلا تتداخل مع Claude Code الذي تستخدمه بحسابك العادي
+    "isolated_config": true,
+    "settings_file": "claude/settings.json",   // الإعدادات والصلاحيات والـ hooks
+    "mcp_file": "config/mcp.jsonc",           // خوادم الأدوات (MCP)
+    "plugins_dir": "claude/plugins",          // كل مجلد فيه .claude-plugin/plugin.json يُحمَّل
+    "extra_plugin_dirs": [],
+    "extra_args": [],                          // وسائط تضاف لكل تشغيل، مثل ["--permission-mode", "acceptEdits"]
+    "env": {}                                  // متغيرات بيئة لكل الجلسات
+  },
+
+  // ----------------------------------------------- المهام غير التفاعلية (run / task)
+  "tasks": {
+    // acceptEdits: يعدّل الملفات دون سؤال، لكن أوامر الطرفية تحتاج إذناً في allowed_tools
+    "permission_mode": "acceptEdits",
+    "allowed_tools": [],        // مثال: ["Bash(npm test *)", "Bash(git diff *)"]
+    "max_turns": 0,             // 0 = بلا حد
+    "timeout_seconds": 0        // 0 = بلا حد
+  }
+}
