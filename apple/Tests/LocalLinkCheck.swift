@@ -1,14 +1,17 @@
 import Foundation
 import Network
+import Darwin
 import CryptoKit
 
 @main struct LocalLinkCheck {
     static func main() async throws {
+        alarm(55)
         let code = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0).base64EncodedString() }
         let listener = try NWListener(using: LocalLink.parameters(code: code), on: .any)
         let prompt = String(repeating: "اختبار ", count: 2400)
         listener.newConnectionHandler = { connection in
             connection.start(queue: .global())
+            FileHandle.standardError.write(Data("Received incoming connection\n".utf8))
             Task {
                 defer { connection.cancel() }
                 do {
@@ -20,13 +23,15 @@ import CryptoKit
             }
         }
         let port: UInt16 = try await withCheckedThrowingContinuation { continuation in
+            var resumed = false // NWListener dispatches these states serially.
             listener.stateUpdateHandler = { state in
+                guard !resumed else { return }
                 switch state {
                 case .ready:
-                    listener.stateUpdateHandler = nil
+                    resumed = true
                     continuation.resume(returning: listener.port!.rawValue)
                 case .failed(let error):
-                    listener.stateUpdateHandler = nil
+                    resumed = true
                     continuation.resume(throwing: error)
                 default: break
                 }
@@ -35,8 +40,10 @@ import CryptoKit
         }
         defer { listener.cancel() }
         let address = "127.0.0.1:" + String(port)
+        FileHandle.standardError.write(Data("Paired request to loopback\n".utf8))
         let answer = try await LocalLink.ask(address: address, code: code, question: prompt)
         guard answer == prompt else { throw LinkError.message("Incorrect reply") }
+        FileHandle.standardError.write(Data("Valid pairing round-trip succeeded\n".utf8))
         let badCode = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0).base64EncodedString() }
         do {
             _ = try await LocalLink.ask(address: address, code: badCode, question: prompt)

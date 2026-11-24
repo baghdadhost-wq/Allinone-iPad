@@ -31,13 +31,19 @@ enum LocalLink {
 
     static func read(_ connection: NWConnection, limit: Int) async throws -> Data {
         func exact(_ count: Int) async throws -> Data {
-            try await withCheckedThrowingContinuation { continuation in
-                connection.receive(minimumIncompleteLength: count, maximumLength: count) { data, _, _, error in
-                    if let error { continuation.resume(throwing: error) }
-                    else if let data, data.count == count { continuation.resume(returning: data) }
-                    else { continuation.resume(throwing: LinkError.message("انقطع الاتصال بالمضيف")) }
+            var result = Data()
+            while result.count < count {
+                let remaining = count - result.count
+                let part: Data = try await withCheckedThrowingContinuation { continuation in
+                    connection.receive(minimumIncompleteLength: 1, maximumLength: min(remaining, 16384)) { data, _, _, error in
+                        if let error { continuation.resume(throwing: error) }
+                        else if let data, !data.isEmpty { continuation.resume(returning: data) }
+                        else { continuation.resume(throwing: LinkError.message("انقطع الاتصال بالمضيف")) }
+                    }
                 }
+                result.append(part)
             }
+            return result
         }
         let header = try await exact(4)
         let length = header.reduce(0) { ($0 << 8) + Int($1) }
@@ -66,10 +72,19 @@ enum LocalLink {
             throw LinkError.message("أدخل عنوان IP والمنفذ الظاهرين في تطبيق المضيف")
         }
         let connection = NWConnection(host: NWEndpoint.Host(String(parts[0])), port: port, using: try parameters(code: code))
+        let handshakeTimeout = DispatchWorkItem { connection.cancel() }
+        connection.stateUpdateHandler = { [weak connection] state in
+            switch state {
+            case .ready: handshakeTimeout.cancel()
+            case .failed, .waiting: connection?.cancel()
+            default: break
+            }
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 12, execute: handshakeTimeout)
         connection.start(queue: DispatchQueue.global(qos: .userInitiated))
         let deadline = DispatchWorkItem { connection.cancel() }
         DispatchQueue.global().asyncAfter(deadline: .now() + 150, execute: deadline)
-        defer { deadline.cancel(); connection.cancel() }
+        defer { handshakeTimeout.cancel(); deadline.cancel(); connection.cancel() }
         try await write(["question":question], to: connection)
         let bytes = try await read(connection, limit: limit)
         let reply = try JSONDecoder().decode([String:String].self, from: bytes)
