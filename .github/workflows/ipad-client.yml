@@ -1,29 +1,37 @@
-name: Build iPad client
+name: Build iPad host and client
 on:
   workflow_dispatch:
   push:
-    paths:
-      - 'AllinoneClient.swiftpm/**'
-      - 'apple/**'
-      - '.github/workflows/ipad-client.yml'
+    paths: ['apple/**', 'AllinoneClient.swiftpm/**', '.github/workflows/ipad-client.yml']
 permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-      - name: Generate client project
+      - name: Generate Apple project
         run: |
           command -v xcodegen || brew install xcodegen
           cd apple
           xcodegen generate
-      - name: Compile for iPhone and iPad
+      - name: Compile iPad host and companion client
         run: |
-          xcodebuild -project apple/AllinoneClient.xcodeproj -scheme AllinoneClient -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
-          mkdir -p Payload
-          cp -R build/Build/Products/Release-iphoneos/AllinoneClient.app Payload/
-          zip -qry AllinoneClient-unsigned.ipa Payload
+          set -euo pipefail
+          for app in AllinoneHost AllinoneClient; do
+            xcodebuild -quiet -project apple/AllinoneClient.xcodeproj -scheme "$app" -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+            mkdir -p "$app/Payload"
+            cp -R "build/Build/Products/Release-iphoneos/$app.app" "$app/Payload/"
+            (cd "$app" && zip -qry "../$app-unsigned.ipa" Payload)
+          done
+      - name: Test the native link on loopback
+        run: |
+          swiftc -o /tmp/local-link-check AllinoneClient.swiftpm/LocalLink.swift apple/Tests/LocalLinkCheck.swift
+          /tmp/local-link-check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AllinoneHost-unsigned
+          path: AllinoneHost-unsigned.ipa
       - uses: actions/upload-artifact@v4
         with:
           name: AllinoneClient-unsigned

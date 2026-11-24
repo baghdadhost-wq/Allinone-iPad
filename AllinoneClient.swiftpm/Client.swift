@@ -35,6 +35,7 @@ final class HostTrust: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
 struct Reply: Decodable { let answer: String?; let error: String? }
 
 struct Chat: View {
+    @State private var native = true
     @State private var address = ""
     @State private var fingerprint = ""
     @State private var token = ""
@@ -46,9 +47,13 @@ struct Chat: View {
         NavigationStack {
             Form {
                 Section("الاتصال بالمضيف") {
+                    Picker("المضيف", selection: $native) {
+                        Text("تطبيق الآيباد").tag(true)
+                        Text("مضيف HTTPS").tag(false)
+                    }
                     TextField("عنوان IP والمنفذ", text: $address)
                     SecureField("رمز الاتصال", text: $token)
-                    TextField("بصمة SHA-256 الظاهرة على المضيف", text: $fingerprint)
+                    if !native { TextField("بصمة SHA-256 الظاهرة على المضيف", text: $fingerprint) }
                 }.textInputAutocapitalization(.never).autocorrectionDisabled()
                 Section("سؤالك") {
                     TextField("اكتب سؤالك", text: $question, axis: .vertical).lineLimit(3...10)
@@ -62,6 +67,15 @@ struct Chat: View {
 
     @MainActor func send() async {
         let raw = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if native {
+            waiting = true
+            output = ""
+            defer { waiting = false }
+            do {
+                output = try await LocalLink.ask(address: raw, code: token.trimmingCharacters(in: .whitespacesAndNewlines), question: question)
+            } catch { output = error.localizedDescription }
+            return
+        }
         guard var url = URLComponents(string: raw.contains("://") ? raw : "https://" + raw),
               url.scheme == "https", let host = url.host, IPv4Address(host) != nil,
               url.user == nil, url.password == nil, url.query == nil, url.fragment == nil,
