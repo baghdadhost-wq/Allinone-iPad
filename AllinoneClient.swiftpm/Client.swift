@@ -105,4 +105,6 @@ struct Chat: View {
     }
 }
 
+#if !UNIVERSAL_APP
 @main struct AllinoneClientApp: App { var body: some Scene { WindowGroup { Chat() } } }
+#endif

@@ -24,10 +24,14 @@ private func wifiAddress() -> String? {
     @Published var address = ""
     @Published var code = ""
     @Published var busy = false
-    @Published var local = true
-    @Published var base = "http://127.0.0.1:20128/v1"
-    @Published var model = "auto"
-    @Published var key = ""
+    @Published var source = AnswerSource.omni
+    @Published var profiles: [AnswerSource:GatewayProfile] = Dictionary(uniqueKeysWithValues: AnswerSource.allCases.map {
+        ($0, GatewayProfile(base: $0.defaultBase, model: $0 == .custom ? "" : "auto", key: ""))
+    })
+    var profile: GatewayProfile {
+        get { profiles[source] ?? GatewayProfile(base: source.defaultBase, model: "auto", key: "") }
+        set { profiles[source] = newValue }
+    }
     private var listener: NWListener?
     private var monitor: NWPathMonitor?
     private var peers: [ObjectIdentifier:NWConnection] = [:]
@@ -77,7 +81,7 @@ private func wifiAddress() -> String? {
         guard !busy else { throw LinkError.message("المضيف يجيب عن سؤال آخر، حاول بعد قليل") }
         busy = true
         defer { busy = false }
-        return try await Engine(local: local, base: base, model: model, key: key).answer(text)
+        return try await Engine(source: source, profile: profile).answer(text)
     }
 
     private func serve(_ peer: NWConnection) async {
@@ -98,7 +102,7 @@ private func wifiAddress() -> String? {
 }
 
 struct Dashboard: View {
-    @StateObject private var host = Host()
+    @ObservedObject var host: Host
     @State private var question = ""
     @State private var answer = ""
     @Environment(\.scenePhase) private var phase
@@ -119,14 +123,13 @@ struct Dashboard: View {
                     }
                 }
                 Section("مصدر الإجابة") {
-                    Picker("المصدر", selection: $host.local) {
-                        Text("نموذج Apple على الجهاز").tag(true)
-                        Text("بوابة نماذج").tag(false)
+                    Picker("المصدر", selection: $host.source) {
+                        ForEach(AnswerSource.allCases) { source in Text(source.rawValue).tag(source) }
                     }
-                    if !host.local {
-                        TextField("Base URL", text: $host.base)
-                        TextField("Model ID", text: $host.model)
-                        SecureField("API Key", text: $host.key)
+                    if host.source != .local {
+                        TextField("Base URL", text: $host.profile.base)
+                        TextField("Model ID", text: $host.profile.model)
+                        SecureField("API Key", text: $host.profile.key)
                     }
                 }.textInputAutocapitalization(.never).autocorrectionDisabled()
                 Section("اسأل من الآيباد") {
@@ -138,8 +141,7 @@ struct Dashboard: View {
                 if !answer.isEmpty { Section("النتيجة") { Text(answer).textSelection(.enabled) } }
             }.navigationTitle("Allinone Host")
         }.environment(\.layoutDirection,.rightToLeft)
-        .onAppear { host.start() }
+
         .onChange(of: phase) { phase in if phase == .active { host.refreshAddress() } }
     }
 }
-@main struct HostApp: App { var body: some Scene { WindowGroup { Dashboard() } } }

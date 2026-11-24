@@ -1,4 +1,4 @@
-name: Build iPad host and client
+name: Build universal Allinone IPA
 on:
   workflow_dispatch:
   push:
@@ -15,24 +15,22 @@ jobs:
           command -v xcodegen || brew install xcodegen
           cd apple
           xcodegen generate
-      - name: Compile iPad host and companion client
+      - name: Compile universal iPhone and iPad app
         run: |
           set -euo pipefail
-          for app in AllinoneHost AllinoneClient; do
-            xcodebuild -quiet -project apple/AllinoneClient.xcodeproj -scheme "$app" -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
-            mkdir -p "$app/Payload"
-            cp -R "build/Build/Products/Release-iphoneos/$app.app" "$app/Payload/"
-            (cd "$app" && zip -qry "../$app-unsigned.ipa" Payload)
-          done
+          xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Allinone.app Payload/
+          zip -qry Allinone-unsigned.ipa Payload
+      - name: Validate native gateway requests and responses
+        run: |
+          swiftc -o /tmp/gateway-check AllinoneClient.swiftpm/LocalLink.swift apple/Host/Engine.swift apple/Tests/GatewayCheck.swift
+          /tmp/gateway-check
       - name: Test the native link on loopback
         run: |
           swiftc -o /tmp/local-link-check AllinoneClient.swiftpm/LocalLink.swift apple/Tests/LocalLinkCheck.swift
           /tmp/local-link-check
       - uses: actions/upload-artifact@v4
         with:
-          name: AllinoneHost-unsigned
-          path: AllinoneHost-unsigned.ipa
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AllinoneClient-unsigned
-          path: AllinoneClient-unsigned.ipa
+          name: Allinone-unsigned
+          path: Allinone-unsigned.ipa

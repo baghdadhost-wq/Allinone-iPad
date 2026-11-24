@@ -1,38 +1,24 @@
-name: AllinoneClient
+name: Allinone
 options:
   deploymentTarget:
     iOS: "16.0"
 targets:
-  AllinoneClient:
+  Allinone:
     type: application
     platform: iOS
     sources:
+      - path: Host
+      - path: Allinone.swift
       - path: ../AllinoneClient.swiftpm/Client.swift
       - path: ../AllinoneClient.swiftpm/LocalLink.swift
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone.client
+        PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: "1"
-        MARKETING_VERSION: "0.1"
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بمضيف Allinone على شبكتك"
+        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "0.2"
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بأجهزتك وتشغيل مضيف Allinone على الشبكة المحلية"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        SWIFT_VERSION: "5.0"
-  AllinoneHost:
-    type: application
-    platform: iOS
-    sources:
-      - path: Host
-      - path: ../AllinoneClient.swiftpm/LocalLink.swift
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone.host
-        TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: "1"
-        MARKETING_VERSION: "0.1"
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بمضيف Allinone على شبكتك"
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UNIVERSAL_APP"
         SWIFT_VERSION: "5.0"
