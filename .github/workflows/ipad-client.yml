@@ -24,7 +24,7 @@ jobs:
           zip -qry Allinone-unsigned.ipa Payload
       - name: Exercise coding sessions, project writes and routing
         run: |
-          swiftc -o /tmp/studio-check AllinoneClient.swiftpm/LocalLink.swift apple/Native/Routing.swift apple/Native/Workspace.swift apple/Native/CodingAgent.swift apple/Tests/NativeStudioCheck.swift
+          swiftc -o /tmp/studio-check AllinoneClient.swiftpm/LocalLink.swift apple/Native/Routing.swift apple/Native/Workspace.swift apple/Native/CodingAgent.swift apple/Native/Exchange.swift apple/Tests/NativeStudioCheck.swift
           /tmp/studio-check
       - name: Test the native link on loopback
         run: |

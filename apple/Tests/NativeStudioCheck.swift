@@ -39,6 +39,18 @@ func verify(_ value: Bool,_ message: String) throws { if !value { throw Check.fa
         let new = try workspace.propose(path:"module/example.swift",replacement:"hello",reason:"create",previouslyRead:[:])
         try workspace.apply(new)
         try verify(try workspace.read("module/example.swift") == Data("hello".utf8),"create")
+        try workspace.undo(new)
+        try verify(!FileManager.default.fileExists(atPath:root.appendingPathComponent(new.path).path),"undo creation")
+        try workspace.undo(edit)
+        try verify(try workspace.read(edit.path) == edit.original,"undo edit")
+        let invalid = try workspace.propose(path:"config.json",replacement:"{bad",reason:"check",previouslyRead:[:])
+        var invalidRejected = false
+        do { try workspace.verifyProposal(invalid) } catch { invalidRejected = true }
+        try verify(invalidRejected,"invalid JSON")
+        let handover = try ManualExchange.handover(prompt:"inspect",selected:"main.swift",studioNotes:"project",turns:[],files:workspace)
+        try verify(handover.contains("let n = 1"),"manual handover")
+        let imported = try ManualExchange.proposal(#"{"action":"edit","path":"main.swift","text":"new"}"#,files:workspace)
+        try verify(imported?.original == edit.original,"review imported edit")
         let a = Provider(name:"A",base:"https://example.org/v1",model:"first",style:.openAI,free:false)
         let b = Provider(name:"B",base:"https://example.org/v1",model:"second",style:.anthropic,free:true)
         let c = Provider(name:"C",base:"https://example.org/v1",model:"third",style:.openAI,free:true)

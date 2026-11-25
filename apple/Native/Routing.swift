@@ -4,7 +4,7 @@ import Security
 
 enum RouteMode: String, Codable, CaseIterable { case priority, freePool }
 
-enum APIStyle: String, Codable, CaseIterable { case openAI, anthropic, onDevice }
+enum APIStyle: String, Codable, CaseIterable { case openAI, anthropic, gateway, onDevice }
 
 struct Provider: Identifiable, Codable, Equatable {
     var id = UUID()
@@ -77,7 +77,7 @@ enum NativeAPI {
               !provider.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw LinkError.message("أدخل عنوان API صالحا واسم النموذج")
         }
-        return u.appendingPathComponent(provider.style == .anthropic ? "messages" : "chat/completions")
+        return u.appendingPathComponent((provider.style == .anthropic || provider.style == .gateway) ? "messages" : "chat/completions")
     }
 
     static func request(_ provider: Provider, key: String, system: String, turns: [Turn]) throws -> URLRequest {
@@ -86,10 +86,13 @@ enum NativeAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         var messages = turns.map { ["role":$0.role, "content":$0.content] }
         var body: [String:Any] = ["model":provider.model]
-        if provider.style == .anthropic {
+        if (provider.style == .anthropic || provider.style == .gateway) {
             body["system"] = system; body["max_tokens"] = 4096
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            request.setValue(key, forHTTPHeaderField: "x-api-key")
+            if !key.isEmpty {
+                if provider.style == .gateway { request.setValue("Bearer " + key, forHTTPHeaderField:"Authorization") }
+                else { request.setValue(key, forHTTPHeaderField:"x-api-key") }
+            }
         } else {
             messages.insert(["role":"system","content":system], at: 0)
             if !key.isEmpty { request.setValue("Bearer " + key, forHTTPHeaderField:"Authorization") }
@@ -120,7 +123,7 @@ enum NativeAPI {
             throw UpstreamFailure(reason:"HTTP \(http.statusCode)", delay:http.statusCode == 429 ? max(1,min(3600,retry)) : 0)
         }
         guard let payload = try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw LinkError.message("استجابة غير صالحة") }
-        if provider.style == .anthropic, let blocks = payload["content"] as? [[String:Any]] {
+        if (provider.style == .anthropic || provider.style == .gateway), let blocks = payload["content"] as? [[String:Any]] {
             let s = blocks.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined(separator:"\n")
             if !s.isEmpty { return s }
         }

@@ -31,7 +31,7 @@ struct Notebook: Codable {
     private var pendingTask: UUID?
     private let storage: URL
     var hostThread: String { book.activeChat ?? "host" }
-    var activeRequest: Task<String,Error>?
+    var activeRequest: Task<AgentReply,Error>?
     func stopRequest() { activeRequest?.cancel() }
     func track(_ detail: String) {
         var events = book.events ?? []
@@ -101,7 +101,7 @@ struct Notebook: Codable {
             UserDefaults.standard.set(data,forKey:"project.bookmark")
             UserDefaults.standard.set(id,forKey:"project.identifier")
             scopedURL?.stopAccessingSecurityScopedResource()
-            scopedURL = url; notebookID = id; files = next; book = nextBook; served = ""; message = ""
+            undoChange = nil; scopedURL = url; notebookID = id; files = next; book = nextBook; served = ""; message = ""
         } catch { url.stopAccessingSecurityScopedResource(); throw error }
     }
     private func notebook(_ id: String) throws -> Notebook {
@@ -171,7 +171,16 @@ struct Notebook: Codable {
     }
     func review(apply: Bool) throws {
         guard let pending else { return }
-        if apply { try files.apply(pending); undoChange = pending; if let task = pendingTask { markDone(task) } }
+        if apply {
+            do {
+                try files.verifyProposal(pending)
+                try files.apply(pending)
+                undoChange = pending
+                guard try files.read(pending.path) == Data(pending.replacement.utf8) else { throw LinkError.message("اختلف المحتوى المحفوظ عن المعاينة") }
+                track("تطابق النص المحفوظ مع المقترح: " + pending.path)
+                if let task = pendingTask { markDone(task) }
+            } catch { track("تعذر التحقق أو الحفظ: " + error.localizedDescription); throw error }
+        }
         append("assistant",(apply ? "تم حفظ التعديل في " : "تم رفض التعديل على ") + pending.path,pendingThread ?? hostThread)
         clearCheckpoint(); track(apply ? "موافقة وحفظ" : "رفض التعديل")
         self.pending = nil; pendingThread = nil; pendingTask = nil

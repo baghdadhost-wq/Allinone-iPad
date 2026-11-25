@@ -30,6 +30,16 @@ enum ManualExchange {
     }
 }
 extension ProjectFiles {
+    func verifyProposal(_ change: EditProposal) throws {
+        let data = Data(change.replacement.utf8)
+        switch (change.path as NSString).pathExtension.lowercased() {
+        case "json":
+            _ = try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)
+        case "plist":
+            _ = try PropertyListSerialization.propertyList(from:data,options:[],format:nil)
+        default: break
+        }
+    }
     func undo(_ change: EditProposal) throws {
         let written = Data(change.replacement.utf8)
         guard root == change.root, try read(change.path) == written else { throw LinkError.message("تغير الملف بعد الحفظ") }

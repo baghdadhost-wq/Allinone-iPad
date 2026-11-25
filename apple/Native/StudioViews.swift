@@ -9,6 +9,7 @@ struct Workbench: View {
     @State private var settings = false
     @State private var projectPanel = false
     @State private var sessionPanel = false
+    @State private var previewPanel = false
     @AppStorage("display.brand") private var brand = "smarter"
     var body: some View {
         NavigationStack {
@@ -51,6 +52,7 @@ struct Workbench: View {
                 ToolbarItem(placement:.navigationBarLeading) {
                     Menu {
                         Button("فتح مجلد مشروع") { picking = true }.disabled(studio.busy || studio.pending != nil)
+                        Button("اختبار صفحة HTML ولقطة شاشة") { previewPanel = true }
                         Button("ملفات ومهام وذاكرة") { projectPanel = true }
                         Button("المحادثات والتقارير والتبادل اليدوي") { sessionPanel = true }
                         Button("محادثة جديدة") { studio.newChat() }.disabled(studio.busy || studio.pending != nil)
@@ -65,6 +67,7 @@ struct Workbench: View {
             }
             .sheet(isPresented:$sessionPanel) { SessionPanel(studio:studio) }
             .sheet(isPresented:$settings) { SettingsPanel(studio:studio,host:host) }
+            .sheet(isPresented:$previewPanel) { PreviewPanel(studio:studio) }
             .sheet(isPresented:$projectPanel) { ProjectPanel(studio:studio) }
         }
     }
@@ -187,6 +190,8 @@ private struct ProviderEditor: View {
             Form {
                 Section {
                     Menu("إعدادات مزود جاهزة") {
+                        Button("OmniRoute") { preset("OmniRoute","http://127.0.0.1:20128/v1",.gateway); provider.model = "auto" }
+                        Button("FreeLLMAPI") { preset("FreeLLMAPI","http://127.0.0.1:3001/v1",.gateway); provider.model = "auto" }
                         Button("OpenAI") { preset("OpenAI","https://api.openai.com/v1",.openAI) }
                         Button("Anthropic") { preset("Anthropic","https://api.anthropic.com/v1",.anthropic) }
                         Button("Groq") { preset("Groq","https://api.groq.com/openai/v1",.openAI) }
@@ -196,7 +201,7 @@ private struct ProviderEditor: View {
                     }
                     TextField("الاسم",text:$provider.name)
                     Picker("الواجهة",selection:$provider.style) {
-                        Text("OpenAI-compatible").tag(APIStyle.openAI); Text("Anthropic Messages").tag(APIStyle.anthropic); Text("Apple على الجهاز").tag(APIStyle.onDevice)
+                        Text("بوابة Messages").tag(APIStyle.gateway); Text("OpenAI-compatible").tag(APIStyle.openAI); Text("Anthropic Messages").tag(APIStyle.anthropic); Text("Apple على الجهاز").tag(APIStyle.onDevice)
                     }
                     if provider.style != .onDevice {
                         TextField("Base URL",text:$provider.base).keyboardType(.URL).onChange(of:provider.base) { _ in key = "" }
