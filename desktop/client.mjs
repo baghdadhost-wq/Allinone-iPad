@@ -1,4 +1,5 @@
 // Node.js 20+ desktop client for the native Allinone iPad host.
+import { randomUUID } from 'node:crypto';
 import tls from 'node:tls';
 import { isIPv4 } from 'node:net';
 import { createInterface } from 'node:readline/promises';
@@ -21,8 +22,9 @@ stdout.write('\n');
 const key = Buffer.from(code, 'base64');
 if (key.length !== 32 || key.toString('base64') !== code) throw new Error('Invalid pairing code');
 
+let session = randomUUID();
 async function ask(question) {
-  const body = Buffer.from(JSON.stringify({ question }));
+  const body = Buffer.from(JSON.stringify({ question, session }));
   if (body.length > 65536) throw new Error('Question too long');
   const header = Buffer.alloc(4);
   header.writeUInt32BE(body.length);
@@ -30,7 +32,7 @@ async function ask(question) {
   const conn = tls.connect({host: ip, port, minVersion: 'TLSv1.2', maxVersion: 'TLSv1.2',
     ciphers: 'PSK-AES128-GCM-SHA256', rejectUnauthorized: false,
     pskCallback: () => ({ psk: key, identity: 'allinone-v1' })});
-  const deadline = setTimeout(() => conn.destroy(new Error('Host timed out')), 150000);
+  const deadline = setTimeout(() => conn.destroy(new Error('Host timed out')), 310000);
   conn.once('secureConnect', () => conn.write(Buffer.concat([header, body])));
   const chunks = [];
   let total = 0;
@@ -55,8 +57,9 @@ async function ask(question) {
 const cli = createInterface({ input: stdin, output: stdout });
 try {
   for (;;) {
-    const question = (await cli.question('Question (/quit to exit): ')).trim();
+    const question = (await cli.question('Question (/new or /quit): ')).trim();
     if (question === '/quit') break;
+    if (question === '/new') { session = randomUUID(); continue; }
     if (!question) continue;
     try { console.log(await ask(question)); } catch (error) { console.error(error.message); }
   }

@@ -65,7 +65,7 @@ enum LocalLink {
         }
     }
 
-    static func ask(address: String, code: String, question: String) async throws -> String {
+    static func ask(address: String, code: String, question: String, sessionID: String? = nil) async throws -> String {
         let parts = address.split(separator: ":", omittingEmptySubsequences: false)
         guard (1...2).contains(parts.count), IPv4Address(String(parts[0])) != nil,
               let port = NWEndpoint.Port(parts.count == 2 ? String(parts[1]) : String(Self.port)) else {
@@ -83,9 +83,11 @@ enum LocalLink {
         DispatchQueue.global().asyncAfter(deadline: .now() + 12, execute: handshakeTimeout)
         connection.start(queue: DispatchQueue.global(qos: .userInitiated))
         let deadline = DispatchWorkItem { connection.cancel() }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 150, execute: deadline)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 310, execute: deadline)
         defer { handshakeTimeout.cancel(); deadline.cancel(); connection.cancel() }
-        try await write(["question":question], to: connection)
+        var payload = ["question":question]
+        if let sessionID { payload["session"] = sessionID }
+        try await write(payload, to: connection)
         let bytes = try await read(connection, limit: limit)
         let reply = try JSONDecoder().decode([String:String].self, from: bytes)
         guard let answer = reply["answer"] else { throw LinkError.message(reply["error"] ?? "تعذر الحصول على جواب") }

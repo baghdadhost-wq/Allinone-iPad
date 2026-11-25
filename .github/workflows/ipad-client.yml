@@ -22,10 +22,10 @@ jobs:
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Allinone.app Payload/
           zip -qry Allinone-unsigned.ipa Payload
-      - name: Validate native gateway requests and responses
+      - name: Exercise coding sessions, project writes and routing
         run: |
-          swiftc -o /tmp/gateway-check AllinoneClient.swiftpm/LocalLink.swift apple/Host/Engine.swift apple/Tests/GatewayCheck.swift
-          /tmp/gateway-check
+          swiftc -o /tmp/studio-check AllinoneClient.swiftpm/LocalLink.swift apple/Native/Routing.swift apple/Native/Workspace.swift apple/Native/CodingAgent.swift apple/Tests/NativeStudioCheck.swift
+          /tmp/studio-check
       - name: Test the native link on loopback
         run: |
           swiftc -o /tmp/local-link-check AllinoneClient.swiftpm/LocalLink.swift apple/Tests/LocalLinkCheck.swift

@@ -12,11 +12,12 @@ struct AllinoneHome: View {
                 Text("اتصال بمضيف").tag(Role.client.rawValue)
             }.pickerStyle(.segmented).padding()
             if savedRole == Role.host.rawValue {
-                Dashboard(host: host)
+                Workbench(studio:host.studio,host:host)
             } else {
                 Chat()
             }
         }
+        .environment(\.layoutDirection,.rightToLeft)
         .onAppear { if savedRole == Role.host.rawValue { host.start() } }
         .onChange(of: savedRole) { role in
             if role == Role.host.rawValue { host.start() } else { host.stop() }

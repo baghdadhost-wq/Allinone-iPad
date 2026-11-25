@@ -7,7 +7,8 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: Host
+      - path: Host/Host.swift
+      - path: Native
       - path: Allinone.swift
       - path: ../AllinoneClient.swiftpm/Client.swift
       - path: ../AllinoneClient.swiftpm/LocalLink.swift
@@ -16,9 +17,11 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: "2"
-        MARKETING_VERSION: "0.2"
+        CURRENT_PROJECT_VERSION: "3"
+        MARKETING_VERSION: "0.3"
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بأجهزتك وتشغيل مضيف Allinone على الشبكة المحلية"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UNIVERSAL_APP"
+        INFOPLIST_KEY_UIFileSharingEnabled: YES
+        INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         SWIFT_VERSION: "5.0"
