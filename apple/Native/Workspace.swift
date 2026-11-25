@@ -55,7 +55,8 @@ struct ProjectFiles {
         guard !needle.isEmpty else { throw LinkError.message("أدخل عبارة بحث") }
         var results = [String](), visited = 0, consumed = 0
         let keys: [URLResourceKey] = [.isDirectoryKey,.isSymbolicLinkKey,.isRegularFileKey,.fileSizeKey]
-        guard let walker = FileManager.default.enumerator(at:root,includingPropertiesForKeys:keys,options:.skipsHiddenFiles) else { return "" }
+        let searchRoot = root.resolvingSymlinksInPath().standardizedFileURL
+        guard let walker = FileManager.default.enumerator(at:searchRoot,includingPropertiesForKeys:keys,options:.skipsHiddenFiles) else { return "" }
         while let file = walker.nextObject() as? URL {
             visited += 1
             if visited > 1200 || results.count >= 30 || consumed > 3 * 1024 * 1024 { break }
@@ -63,7 +64,9 @@ struct ProjectFiles {
             if v.isSymbolicLink == true || ignored.contains(file.lastPathComponent) { walker.skipDescendants(); continue }
             guard v.isRegularFile == true, let size = v.fileSize, size <= Self.maxBytes else { continue }
             consumed += size
-            let relative = file.pathComponents.dropFirst(root.pathComponents.count).joined(separator:"/")
+            let components = file.resolvingSymlinksInPath().standardizedFileURL.pathComponents
+            guard components.starts(with:searchRoot.pathComponents) else { continue }
+            let relative = components.dropFirst(searchRoot.pathComponents.count).joined(separator:"/")
             guard let data = try? read(relative), let content = String(data:data,encoding:.utf8) else { continue }
             for (index,line) in content.components(separatedBy:.newlines).enumerated() where line.localizedCaseInsensitiveContains(needle) {
                 results.append("\(relative):\(index+1) " + String(line.prefix(180)))
