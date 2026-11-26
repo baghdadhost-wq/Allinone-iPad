@@ -1,0 +1,80 @@
+/* Applied to the bundled upstream page after its own stylesheet. */
+:root { --rail: clamp(14rem, 22vw, 18rem); --gutter: clamp(8px, 1.8vw, 18px); }
+html, body { overflow: hidden; }
+#app {
+  position: relative;
+  height: min(100%, var(--visible-height, 100%));
+  overflow: hidden;
+}
+#sidebar { width: var(--rail); min-width: var(--rail); overflow-y: auto; transition: none; }
+#app.side-hidden #sidebar { display: none; }
+main, #messages, #convList, .modal .mbody { min-height: 0; }
+#convList { min-height: 3rem; }
+#topbar, #composer, #messages { padding-inline: var(--gutter); }
+#messages { overflow-wrap: anywhere; overscroll-behavior: contain; }
+#welcome { margin-block-start: clamp(8px, 6vh, 72px); }
+#welcome h1 { font-size: clamp(1.3rem, 3.5vw, 1.875rem); }
+#input { font-size: max(16px, 1em); max-height: min(260px, calc(var(--visible-height, 100vh) * .22)); }
+#gwPills { min-width: 0; max-width: 100%; overflow-x: auto; }
+.pill { flex: none; }
+#mobileHeaderTools { display: contents; }
+#drawerBackdrop, #drawerClose { display: none; }
+#overlay { bottom: auto; height: min(100%, var(--visible-height, 100%)); }
+.modal { min-width: 0; max-height: 100%; overflow-wrap: anywhere; }
+.modal textarea { min-height: min(240px, 30vh); }
+img { max-width: 100%; }
+#projChip, #hoChip, #banner { overflow-wrap: anywhere; }
+
+/* Keep the controls reachable when the main pane is narrow or the keyboard is up. */
+@media (max-width: 1100px), (max-height: 520px) {
+  #topbar {
+    display: grid; grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px 8px; padding-block: 4px;
+  }
+  #sideBtn { min-width: 44px; min-height: 44px; font-size: 18px; }
+  #gwPills { justify-self: start; padding: 2px; }
+  .pill { min-height: 40px; padding: 4px clamp(8px, 2vw, 12px); }
+  #mobileHeaderTools, .box > .row {
+    display: flex; flex-wrap: nowrap; min-width: 0; max-width: 100%;
+    overflow-x: auto; overscroll-behavior-inline: contain;
+    gap: 6px; align-items: center; padding-block: 2px;
+  }
+  #mobileHeaderTools { grid-column: 1 / -1; }
+  #mobileHeaderTools > *, .box > .row > * { flex: none; white-space: nowrap; }
+  #mobileHeaderTools > .spacer, .box .row > .spacer { display: none; }
+  #mobileHeaderTools .btn, #mobileHeaderTools .field { min-height: 36px; }
+  .field input, .field select, #search, .modal input, .modal textarea { font-size: 16px; }
+  #mobileHeaderTools .field input, #mobileHeaderTools .field select { max-width: min(12rem, 48vw); }
+  #composer { padding-block: 4px 6px; }
+  .box {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 6px; align-items: end; padding: 5px 8px;
+  }
+  #input { grid-column: 1; align-self: center; min-width: 0; }
+  #send { grid-column: 2; grid-row: 1; width: 44px; height: 44px; }
+  .box > .row { grid-column: 1 / -1; grid-row: 2; margin: 0; }
+  .box .row .btn, .box .row .toggle { min-height: 36px; }
+  #projectBtn { max-width: min(240px, 65vw); }
+  #messages { padding-block: clamp(8px, 2vh, 22px); }
+  #composer .hint { display: none; }
+  .plist { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+}
+@media (max-width: 900px), (max-height: 520px) {
+  #sidebar {
+    position: absolute; inset-block: 0; inset-inline-start: 0; z-index: 6;
+    width: min(19rem, calc(100% - 3.25rem)); min-width: 0; height: 100%;
+    margin: 0; padding: clamp(8px, 2vw, 16px);
+  }
+  #app.side-hidden #sidebar { margin: 0; }
+  #drawerBackdrop {
+    display: block; position: absolute; inset: 0; z-index: 5;
+    background: rgba(0, 0, 0, .36);
+  }
+  #app.side-hidden #drawerBackdrop { display: none; }
+  #drawerClose { display: inline-grid; place-items: center; margin-inline-start: auto; min-width: 44px; min-height: 44px; }
+  .pgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-height: 520px) {
+  #welcome { margin-top: 0; }
+  #banner { margin-top: 2px; max-height: 15vh; overflow: auto; }
+}

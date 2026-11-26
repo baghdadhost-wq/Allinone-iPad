@@ -25,7 +25,80 @@
     native('/api/conversations/'+encodeURIComponent(conversation.dataset.id)+'/export')
       .catch(error=>window.alert(error.message));
   },true);
+  function installLayout() {
+    const byId = id => document.getElementById(id);
+    const app = byId('app'), sidebar = byId('sidebar'), main = app.querySelector('main');
+    const menu = byId('sideBtn'), send = byId('send'), row = send.parentElement;
+    const drawer = matchMedia('(max-width: 900px), (max-height: 520px)');
+    const toolbar = matchMedia('(max-width: 1100px), (max-height: 520px)');
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'responsive.css';
+    document.head.append(css);
+
+    const headerTools = document.createElement('div');
+    headerTools.id = 'mobileHeaderTools';
+    const top = byId('topbar');
+    headerTools.append(...Array.from(top.children).slice(2));
+    top.append(headerTools);
+    function positionSend() {
+      if (toolbar.matches) row.before(send);
+      else row.append(send);
+    }
+    positionSend();
+    toolbar.addEventListener('change', positionSend);
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'drawerBackdrop';
+    backdrop.setAttribute('aria-hidden','true');
+    sidebar.after(backdrop);
+    const close = document.createElement('button');
+    close.id = 'drawerClose';
+    close.className = 'btn ghost';
+    close.textContent = '×';
+    sidebar.querySelector('.brand').append(close);
+    menu.setAttribute('aria-controls', sidebar.id);
+    function labelMenu() {
+      const arabic = document.documentElement.lang === 'ar';
+      menu.setAttribute('aria-label', arabic ? 'قائمة المحادثات والمشاريع' : 'Chats and projects');
+      close.setAttribute('aria-label', arabic ? 'إغلاق القائمة' : 'Close menu');
+    }
+    labelMenu();
+    new MutationObserver(labelMenu).observe(document.documentElement, {attributes:true, attributeFilter:['lang']});
+    function showSidebar(show, moveFocus = false) {
+      main.inert = drawer.matches && show;
+      app.classList.toggle('side-hidden', !show);
+      menu.setAttribute('aria-expanded', String(show));
+      if (moveFocus) (show && drawer.matches ? close : menu).focus({preventScroll:true});
+    }
+    function applyWidth() { showSidebar(!drawer.matches); }
+    applyWidth();
+    drawer.addEventListener('change', applyWidth);
+    menu.onclick = () => showSidebar(app.classList.contains('side-hidden'), true);
+    close.onclick = backdrop.onclick = () => showSidebar(false, true);
+    sidebar.addEventListener('click', event => {
+      if (drawer.matches && event.target.closest('#newChat, .conv') && !event.target.closest('[data-act]')) {
+        showSidebar(false, true);
+      }
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && drawer.matches && !app.classList.contains('side-hidden') && !byId('overlay').classList.contains('show')) {
+        showSidebar(false, true);
+      }
+    });
+    const viewport = window.visualViewport;
+    if (viewport) {
+      const resize = () => {
+        if (Math.abs(viewport.scale - 1) < .02) {
+          document.documentElement.style.setProperty('--visible-height', viewport.height + 'px');
+        }
+      };
+      resize();
+      viewport.addEventListener('resize', resize);
+    }
+  }
   window.addEventListener('DOMContentLoaded',()=>{
+    installLayout();
     const version=document.getElementById('ver');
     version.setAttribute('role','button'); version.tabIndex=0;
     version.title='إعدادات الجهاز والاتصال';
