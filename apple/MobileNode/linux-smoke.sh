@@ -38,5 +38,5 @@ cat "$state/state.json"
 for url in http://127.0.0.1:3001/api/ping http://127.0.0.1:20128/api/health/ping; do
   curl --noproxy '*' -sS --max-time 4 -o /dev/null -w '%{url_effective} %{http_code}\n' "$url" || true
 done
-grep -Ei 'MODULE_NOT_FOUND|Cannot find module|TypeError|ReferenceError|SyntaxError|EACCES|ENOSPC|ERR_UNKNOWN' "$state/runtime.log" | cut -c1-240 | tail -20 || true
+grep -Ei '⨯|^Error|^ *at |\[error\]|MODULE_NOT_FOUND|Cannot find module|TypeError|ReferenceError|SyntaxError|EACCES|ENOSPC|ERR_UNKNOWN' "$state/runtime.log" | sed -E 's/[[:alnum:]_=-]{24,}/[redacted]/g' | cut -c1-240 | tail -35 || true
 exit 1

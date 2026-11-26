@@ -21,13 +21,25 @@ jobs:
       - name: Build original gateway packages for the embedded JS runtime
         if: steps.gateway-cache.outputs.cache-hit != 'true'
         run: bash apple/MobileNode/prepare.sh "$RUNNER_TEMP/mobile-assets"
-      - name: Test upstream APIs and dashboards without Internet access
-        run: sudo env PATH="$PATH" unshare --net bash apple/MobileNode/linux-smoke.sh "$RUNNER_TEMP/mobile-assets"
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-gateway-resources
           path: ${{ runner.temp }}/mobile-assets/gateways.dat
           retention-days: 1
+  gateway-check:
+    needs: assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: mobile-gateway-resources
+          path: ${{ runner.temp }}/mobile-assets
+      - name: Test upstream APIs and dashboards without Internet access
+        run: sudo env PATH="$PATH" unshare --net bash apple/MobileNode/linux-smoke.sh "$RUNNER_TEMP/mobile-assets"
   build:
     needs: assets
     runs-on: macos-26
