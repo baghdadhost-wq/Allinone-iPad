@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Allinone</title>
+<style>
+:root{
+  --bg:#faf9f5; --side:#f3f1ea; --panel:#ffffff; --text:#1f1e1b; --muted:#6f6b62; --line:#e6e2d8;
+  --accent:#c96442; --accent-2:#b4532f; --user:#efece3; --code:#f4f2ec; --ok:#3f8f5b; --warn:#c08a1c; --err:#c0392b;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+}
+[data-theme=dark]{
+  --bg:#262624; --side:#1f1e1d; --panel:#30302e; --text:#ecebe6; --muted:#a19e95; --line:#3d3c39;
+  --accent:#d97757; --accent-2:#e08a6c; --user:#383734; --code:#1c1b1a; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.65 "Segoe UI","Noto Sans Arabic","Noto Sans",Tahoma,system-ui,sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+#app{display:flex;height:100%}
+/* sidebar */
+#sidebar{width:270px;min-width:270px;background:var(--side);border-inline-end:1px solid var(--line);display:flex;flex-direction:column;padding:12px;gap:10px;transition:margin .2s}
+#app.side-hidden #sidebar{margin-inline-start:-270px}
+.brand{font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px;padding:4px 6px}
+.brand .star{color:var(--accent);font-size:22px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:7px 12px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-2)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--user);border-color:transparent}
+.btn.small{padding:3px 9px;font-size:13px;border-radius:8px}
+#search{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:7px 10px;width:100%}
+#convList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.conv{padding:8px 10px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.conv:hover{background:var(--user)}
+.conv.active{background:var(--user);font-weight:600}
+.conv .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv .acts{display:none;gap:2px}
+.conv:hover .acts{display:flex}
+.conv .acts button{border:0;background:transparent;padding:0 4px;color:var(--muted)}
+.side-foot{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:12px;flex-wrap:wrap}
+/* main */
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+#topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+#gwPills{display:flex;gap:6px;background:var(--side);padding:4px;border-radius:12px;border:1px solid var(--line)}
+.pill{border:0;background:transparent;border-radius:9px;padding:6px 12px;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.pill.active{background:var(--panel);box-shadow:var(--shadow);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:#aaa;display:inline-block}
+.dot.d-up{background:var(--ok)} .dot.d-warn{background:var(--warn)} .dot.d-off{background:#b9b5ab} .dot.d-err{background:var(--err)}
+.spacer{flex:1}
+.field{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.field select,.field input{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:4px 8px;color:var(--text);max-width:220px}
+#banner{display:none;margin:10px auto 0;max-width:820px;width:calc(100% - 28px);padding:10px 14px;border-radius:10px;background:#fbefe9;border:1px solid #f0c9b8;color:#7a3b22;font-size:14px}
+[data-theme=dark] #banner{background:#4a2f25;border-color:#6b4031;color:#f6d5c7}
+#banner.show{display:flex;gap:10px;align-items:center}
+#messages{flex:1;overflow:auto;padding:22px 14px 30px}
+.wrap{max-width:820px;margin:0 auto}
+#welcome{text-align:center;margin-top:12vh}
+#welcome h1{font-weight:500;font-size:30px;margin:0 0 8px;font-family:Georgia,"Noto Naskh Arabic",serif}
+#welcome h1 .star{color:var(--accent)}
+#welcome p{color:var(--muted);margin:4px 0}
+.msg{margin:18px 0}
+.msg.user{display:flex;justify-content:flex-start}
+.bubble{background:var(--user);border-radius:16px;padding:10px 15px;max-width:85%;white-space:pre-wrap;word-wrap:break-word}
+.bubble .badges{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.badge{font-size:11px;padding:1px 8px;border-radius:20px;background:var(--panel);color:var(--muted);border:1px solid var(--line)}
+.sent-label{font-size:11px;color:var(--accent);font-weight:600;margin-bottom:4px;display:block}
+.assistant .body{padding:2px 4px}
+.assistant .body p{margin:.55em 0}
+.assistant .body pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;direction:ltr;text-align:left;position:relative;font-size:13px;line-height:1.5}
+.assistant .body code{font-family:Consolas,"Cascadia Mono",Menlo,monospace;font-size:.92em}
+.assistant .body :not(pre)>code{background:var(--code);padding:1px 5px;border-radius:5px;border:1px solid var(--line);direction:ltr;unicode-bidi:isolate}
+.assistant .body table{border-collapse:collapse;margin:.6em 0;display:block;overflow:auto}
+.assistant .body th,.assistant .body td{border:1px solid var(--line);padding:5px 9px}
+.assistant .body blockquote{border-inline-start:3px solid var(--line);margin:.5em 0;padding:0 12px;color:var(--muted)}
+.assistant .body h1,.assistant .body h2,.assistant .body h3{line-height:1.3;margin:1em 0 .4em}
+.assistant .body a{color:var(--accent)}
+.copy{position:absolute;top:6px;right:6px;font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);opacity:.8}
+.tool{border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--panel);font-size:13px}
+.tool summary{padding:7px 11px;cursor:pointer;color:var(--muted);display:flex;gap:7px;align-items:center;list-style:none}
+.tool summary::-webkit-details-marker{display:none}
+.tool summary b{color:var(--text);font-weight:600}
+.tool pre{margin:0 10px 10px;max-height:300px;overflow:auto;background:var(--code);padding:9px;border-radius:8px;direction:ltr;text-align:left;white-space:pre-wrap;font-size:12px}
+.tool.error summary{color:var(--err)}
+.thinking{font-size:13px;color:var(--muted);border-inline-start:2px solid var(--line);padding-inline-start:10px;margin:6px 0;white-space:pre-wrap;max-height:160px;overflow:auto}
+.notice{font-size:13px;color:var(--muted);text-align:center;margin:10px 0}
+.err{color:var(--err);background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.25);padding:8px 12px;border-radius:10px;white-space:pre-wrap;margin:6px 0}
+.meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px;margin-top:6px;flex-wrap:wrap}
+.meta button{border:0;background:transparent;color:var(--muted);padding:2px 4px;border-radius:6px}
+.meta button:hover{background:var(--user);color:var(--text)}
+.cursor::after{content:"▍";animation:blink 1s steps(2) infinite;color:var(--accent)}
+@keyframes blink{50%{opacity:0}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* composer */
+#composer{padding:6px 14px 14px}
+.box{max-width:820px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:10px 12px 8px}
+.box:focus-within{border-color:var(--accent)}
+#input{width:100%;border:0;outline:0;resize:none;background:transparent;min-height:26px;max-height:260px;line-height:1.6}
+.row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.toggle{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:20px;padding:3px 11px;font-size:13px;cursor:pointer;user-select:none;color:var(--muted)}
+.toggle input{display:none}
+.toggle.on{background:rgba(201,100,66,.12);border-color:var(--accent);color:var(--accent);font-weight:600}
+#send{width:36px;height:36px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center}
+#send:disabled{opacity:.4;cursor:default}
+#send.stop{background:var(--text)}
+#projectBtn{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr}
+#chips{display:flex;gap:6px;flex-wrap:wrap;max-width:820px;margin:0 auto 6px}
+.chipfile{font-size:12px;background:var(--user);border-radius:8px;padding:3px 8px;display:flex;gap:6px;align-items:center}
+.chipfile button{border:0;background:transparent;color:var(--muted);padding:0}
+.chipfile.busy{opacity:.7}
+#gwPower.on{color:var(--err);border-color:rgba(192,57,43,.4)}
+.approval{border:2px solid var(--accent);border-radius:12px;padding:10px 12px;margin:10px 0;background:var(--panel)}
+.approval.done{border-width:1px;border-color:var(--line);opacity:.85}
+.approval .ap-h{font-weight:600;margin-bottom:6px}
+.approval pre{background:var(--code);border-radius:8px;padding:8px;direction:ltr;text-align:left;white-space:pre-wrap;max-height:220px;overflow:auto;font-size:12.5px;margin:0 0 8px}
+.approval .ap-btns{display:flex;gap:8px;flex-wrap:wrap}
+.approval .ap-state{font-size:13px;color:var(--muted)}
+#preBtn.on{background:rgba(63,143,91,.13);border-color:var(--ok);color:var(--ok);font-weight:600}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.tabs button{flex:1;border:0;background:transparent;border-radius:8px;padding:5px}
+.tabs button.active{background:var(--user);font-weight:600}
+.conv .tag{font-size:11px;color:var(--muted)}
+#projChip{display:none;max-width:820px;margin:0 auto 6px;font-size:12.5px;color:var(--muted)}
+#projChip.show{display:flex;gap:8px;align-items:center}
+#projChip b{color:var(--text)}
+#projChip button{border:0;background:transparent;color:var(--muted);padding:0 4px}
+.pview h2{margin:6px 0 2px;font-weight:600}
+.pview .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.card h3{margin:0 0 8px;font-size:15px}
+.card label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 3px}
+.card input,.card textarea,.card select,.modal textarea,.modal input,.modal select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:7px 9px;color:var(--text)}
+.card textarea{min-height:150px;resize:vertical}
+.flist{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.fitem{display:flex;gap:8px;align-items:center;font-size:13px;background:var(--user);border-radius:8px;padding:4px 8px}
+.fitem span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fitem button{border:0;background:transparent;color:var(--muted)}
+.pconv{padding:7px 9px;border-radius:8px;cursor:pointer;font-size:14px}
+.pconv:hover{background:var(--user)}
+.plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:12px}
+.pcard{cursor:pointer}
+.pcard:hover{border-color:var(--accent)}
+.pcard .d{color:var(--muted);font-size:13px;margin-top:4px;min-height:1.4em}
+.pcard .n{color:var(--muted);font-size:12px;margin-top:8px}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+#overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);width:min(760px,100%);max-height:92vh;display:flex;flex-direction:column;padding:16px 18px;gap:10px}
+.modal h3{margin:0}
+.modal .mbody{overflow:auto;display:flex;flex-direction:column;gap:8px}
+.modal textarea{min-height:240px;resize:vertical;font-size:13px}
+.modal textarea.mono{direction:ltr;text-align:left;font-family:Consolas,Menlo,monospace;white-space:pre}
+.modal .mbtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.modal .muted{color:var(--muted);font-size:12.5px}
+@media (max-width:760px){.pgrid{grid-template-columns:1fr}}
+.hochip{display:none;max-width:820px;margin:0 auto 6px;font-size:12.5px;color:var(--muted)}
+.hochip.show{display:flex;gap:8px;align-items:center}
+.hochip button{border:0;background:transparent;color:var(--muted)}
+.ctxwarn{border:1px solid var(--accent);border-radius:12px;padding:9px 12px;margin:8px 0;font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.krow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.krow .kn b{font-weight:600}
+.krow .kn small{color:var(--muted);display:block}
+.krow.done{opacity:.65}
+.kadd{display:flex;gap:6px;grid-column:1/-1}
+.kadd input{flex:1}
+.kstat{font-size:15px;font-weight:600;margin:4px 0 8px}
+.bfiles{font-size:13px;margin:6px 0;display:flex;flex-direction:column;gap:3px}
+.bfiles .bf{display:flex;gap:8px;align-items:center}
+.bfiles code{direction:ltr;unicode-bidi:isolate}
+.bplan{display:flex;flex-direction:column;gap:4px;font-size:13px;max-height:260px;overflow:auto}
+.bplan label{display:flex;gap:8px;align-items:center;justify-content:flex-start}
+.bplan input{width:auto !important;flex:none}
+.bfiles > button{align-self:flex-start}
+.bplan .rej{color:var(--err)}
+.bsteps{font-size:13.5px;line-height:1.7}
+.vis{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin:8px 0;background:var(--panel)}
+.vis.bad{border-color:rgba(192,57,43,.35)}
+.vis.good{border-color:rgba(63,143,91,.45)}
+.vis .vh{font-weight:600;font-size:14px;margin-bottom:4px}
+.vis .vp{font-size:13px;color:var(--err);white-space:pre-wrap;margin:3px 0}
+.vis .vn{font-size:12px;color:var(--muted)}
+.shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.shots figure{margin:0;width:150px;cursor:zoom-in}
+.shots img{width:150px;height:100px;object-fit:cover;object-position:top;border:1px solid var(--line);border-radius:8px;background:#fff}
+.shots figcaption{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left}
+.bigshot{max-width:100%;max-height:78vh;border-radius:8px;border:1px solid var(--line);align-self:center}
+.vbadge code{direction:ltr;unicode-bidi:isolate}
+.vbadge{display:inline-block;max-width:100%;overflow-wrap:anywhere;margin:8px 0 2px;padding:3px 10px;border-radius:14px;font-size:12.5px;border:1px solid var(--line);color:var(--muted)}
+.vbadge.ok{border-color:var(--ok);color:var(--ok);background:rgba(63,143,91,.08)}
+.vbadge.bad{border-color:var(--err);color:var(--err);background:rgba(192,57,43,.06)}
+pre.vout{white-space:pre-wrap;direction:ltr;text-align:left;max-height:200px;overflow:auto;font-size:12px}
+.intr{border:1px solid var(--warn);background:rgba(192,138,28,.08);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px}
+.intr .ih{font-weight:600;margin-bottom:4px}
+.intr .ia{color:var(--muted);margin-bottom:8px}
+.intr details{font-size:12px;color:var(--muted);margin-bottom:8px}
+.intr details pre{white-space:pre-wrap;direction:ltr;text-align:left;max-height:160px;overflow:auto;background:var(--code);padding:6px;border-radius:6px}
+.intr .ib{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.waitbox{border:1px dashed var(--accent);border-radius:12px;padding:9px 12px;margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.hint{max-width:820px;margin:6px auto 0;color:var(--muted);font-size:12px;text-align:center}
+@media (max-width:760px){#sidebar{position:fixed;z-index:5;height:100%}#app.side-hidden #sidebar{margin-inline-start:-290px}.field select,.field input{max-width:130px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand"><span class="star">✳</span> Allinone</div>
+    <button class="btn primary" id="newChat"></button>
+    <div class="tabs"><button id="tabChats" class="active" data-i="chats"></button><button id="tabProjects" data-i="projects"></button></div>
+    <input id="search">
+    <div id="convList"></div>
+    <div class="side-foot">
+      <button class="btn small ghost" id="themeBtn">◐</button>
+      <button class="btn small ghost" id="langBtn">EN</button>
+      <span id="ver"></span>
+      <button class="btn small ghost" id="quitBtn"></button>
+    </div>
+  </aside>
+  <main>
+    <header id="topbar">
+      <button class="btn ghost small" id="sideBtn" aria-label="menu">☰</button>
+      <div id="gwPills"></div>
+      <button class="btn small" id="gwPower"></button>
+      <select id="account" class="btn small" style="display:none"></select>
+      <button class="btn small" id="keysBtn" style="display:none"></button>
+      <button class="btn small" id="gwAction"></button>
+      <span class="spacer"></span>
+      <button class="btn small" id="preBtn"></button>
+      <button class="btn small" id="reportBtn"></button>
+      <label class="field"><span data-i="model"></span><input id="model" list="modelList" autocomplete="off"><datalist id="modelList"></datalist></label>
+      <label class="field"><span data-i="effort"></span><select id="effort"></select></label>
+      <label class="field"><span data-i="perm"></span><select id="perm"></select></label>
+    </header>
+    <div id="banner"></div>
+    <section id="messages"><div class="wrap" id="thread"></div></section>
+    <footer id="composer">
+      <div id="projChip"></div>
+      <div id="hoChip" class="hochip"></div>
+      <div id="chips"></div>
+      <div class="box">
+        <textarea id="input" rows="1"></textarea>
+        <div class="row">
+          <button class="btn small ghost" id="attachBtn" title="">📎</button>
+          <input type="file" id="fileInput" multiple hidden>
+          <button class="btn small ghost" id="answerBtn">📥</button>
+          <label class="toggle" id="tQuick"><input type="checkbox" id="quick">💬 <span data-i="quick"></span></label>
+          <label class="toggle" id="tLight"><input type="checkbox" id="light">🪶 <span data-i="light"></span></label>
+          <label class="toggle" id="tFailover"><input type="checkbox" id="failover">↪ <span data-i="failover"></span></label>
+          <label class="toggle" id="tVisual"><input type="checkbox" id="visual">👁 <span data-i="visual"></span></label>
+          <label class="toggle" id="tVerify"><input type="checkbox" id="verify">🔁 <span data-i="verify"></span></label>
+          <label class="toggle" id="tDeep"><input type="checkbox" id="deep">🧠 <span data-i="deep"></span></label>
+          <label class="toggle" id="tMemory"><input type="checkbox" id="memory">📝 <span>Memory</span></label>
+          <label class="toggle" id="tSent"><input type="checkbox" id="showSent">👁 <span data-i="showSent"></span></label>
+          <span class="spacer"></span>
+          <button class="btn small" id="projectBtn"></button>
+          <button id="send" disabled>↑</button>
+        </div>
+      </div>
+      <div class="hint" data-i="hint"></div>
+    </footer>
+  </main>
+</div>
+<div id="overlay"><div class="modal" id="modal"></div></div>
+<input type="file" id="projFileInput" multiple hidden>
+<input type="file" id="answerFile" accept=".txt,.md,.markdown,.text,.log,.json" hidden>
+<script>
+"use strict";
+const I18N = {
+  ar: {newChat:"+ محادثة جديدة", search:"بحث في المحادثات", model:"النموذج", effort:"الجهد", perm:"الصلاحيات",
+    verify:"تحقق وأصلح", verifyTip:"Allinone يجرّب النتيجة عندما يقول النموذج إنه انتهى (اختبارات/بناء)؛ إذا فشلت يعيد الخطأ إليه ليصلحه ويغيّر الأسلوب إن تكرر، ثم يتحقق من جديد",
+    vRound:"🔁 تحقق آلي (الجولة {n})", vPass:"✔ نجح", vFail:"✘ فشل (رمز {code}) — أُعيد الخطأ إلى النموذج ليصلحه", vSelf:"🔎 لا يوجد أمر تحقق؛ طُلب من النموذج أن يجرّب النتيجة بنفسه",
+    vBadge:{passed:"✔ تم التحقق", failed:"✘ فشل التحقق بعد {n} جولات", fixing:"✘ آخر تحقق فشل", self:"🔎 جرّبه النموذج بنفسه", skipped:"", none:""},
+    projVerify:"أمر التحقق (مثل npm test أو pytest — فارغ = اكتشاف تلقائي)",
+    quick:"سؤال سريع", quickTip:"يُرسل السؤال إلى البوابة مباشرة (مثل playground) دون smarter Code ودون أدوات: جواب سريع جداً، لكنه لا يقرأ ملفات المشروع ولا ينفّذ أوامر. أطفئه للعمل على المشروع.", quickBadge:"💬 سؤال سريع",
+    light:"وضع خفيف", lightTip:"smarter Code بأدوات أساسية فقط (أوامر، قراءة، تعديل، كتابة، بحث) ودون إضافات وطلبات جانبية: كل طلب أصغر بكثير فيصبح أسرع مع البوابات المجانية.", lightBadge:"🪶 خفيف",
+    failover:"تحويل تلقائي", failoverTip:"إذا نفدت كل نماذج البوابة (429) أو توقفت، ينتقل العمل تلقائياً إلى البوابة التالية (FreeLLMAPI ← OmniRoute ← Claude) مع ملف تسليم يلخص ما أُنجز.",
+    keys:"🔑 المفاتيح", keysTitle:"🔑 مفاتيح FreeLLMAPI — نماذج تدعم الأدوات", keysUsable:"نماذج صالحة الآن (تدعم الأدوات ولها مفتاح): {n}",
+    keysKeyless:"⚡ تفعيل المزوّدين الذين لا يحتاجون مفتاحاً ({n})", keysKeylessNone:"كل المزوّدين بلا مفتاح مفعّلون.",
+    keysHelp:"المزوّدون مرتبون حسب عدد نماذجهم التي تدعم الأدوات. افتح صفحة المفتاح، أنشئه بحسابك، والصقه هنا.", keysOpen:"🔗 صفحة المفتاح", keysPaste:"الصق المفتاح…", keysAdd:"إضافة",
+    keysTools:"{n} نموذجاً يدعم الأدوات", keysHave:"✔ مضاف ({k})", keysAdded:"أُضيف ✔ — نماذج متاحة الآن: {n}", keysNeedCred:"اكتب بريد وكلمة مرور لوحة FreeLLMAPI (مرة واحدة):",
+    keysEmail:"البريد", keysPass:"كلمة المرور", keysSave:"حفظ", keysLoading:"جارٍ تشغيل FreeLLMAPI وقراءة المزوّدين…",
+    fastLabel:"⚡ الأسرع مع الأدوات (Allinone)", ctxWarn:"📏 المحادثة صارت كبيرة (≈{n} توكن من {m}). الطلبات الكبيرة أبطأ وترفضها نماذج كثيرة.", ctxNew:"↪ محادثة جديدة تكمل من هنا",
+    hoFrom:"↪ تكمل من: {t}", reportShort:"تقرير مختصر (الأخطاء وما قبلها فقط)",
+    webPill:"🌐 Claude.ai يدوي", webTip:"أي حساب Claude في المتصفح (المجاني أيضاً). Allinone يجهّز الطلب كاملاً، وأنت تلصقه في Claude.ai وتلصق الجواب هنا، فتُكتب الملفات في مشروعك على جهازك. تستطيع المتابعة من حساب آخر في أي وقت.",
+    webTitle:"🌐 Claude.ai — أي حساب، والمشروع على جهازك", webStep1:"١- انسخ الطلب والصقه في محادثة جديدة في Claude.ai (أي حساب).", webCopy:"📋 نسخ وفتح Claude.ai", webDl:"⬇ تنزيل الطلب كملف",
+    webBig:"الطلب كبير؛ إن رفض Claude.ai لصقه فنزّله كملف وأرفقه في المحادثة.", webInfo:"{c} حرف · {f} ملفات من المشروع", webStep2:"٢- عندما يرد Claude اضغط زر النسخ أسفل رده، ثم الصقه هنا:",
+    webPreview:"معاينة التغييرات", webApply:"تطبيق على المشروع", webNoFiles:"لم أجد ملفات بالصيغة المطلوبة في الجواب. سيُحفظ الجواب نصاً فقط.", webLater:"لاحقاً",
+    webAct:{create:"＋ جديد", modify:"✎ تعديل", delete:"🗑 حذف", same:"= بلا تغيير", rejected:"✘ مرفوض"}, webRuns:"أوامر يقترحها الرد (شغّلها بزر بعد التطبيق):",
+    webWritten:"📝 كُتب في مشروعك:", webUndo:"↩ تراجع", webUndone:"تم التراجع عن هذه التغييرات.", webRun:"▶ تشغيل", webPaste:"📥 لصق جواب Claude.ai", webCopied:"نُسخ ✔ — الصقه في Claude.ai",
+    accAdd:"➕ إضافة حساب…", accRemove:"🗑 حذف هذا الحساب", accName:"اسم الحساب (مثلاً: العمل، الشخصي):", accRemoveAsk:"حذف هذا الحساب من Allinone وتسجيل خروجه؟ (المشاريع والمحادثات تبقى)", accTip:"حساب Claude المستخدم. لكل حساب تسجيل دخوله؛ وعند تغيير الحساب في محادثة تُنقل بملف تسليم.",
+    visual:"تجربة فعلية", visualTip:"تشغيل البرنامج فعلياً واستخدامه وأخذ صور بمراحله المختلفة، مع مراجعة الصور بنموذج يرى الصور، وإعادة أي مشكلة إلى النموذج ليصلحها (مثل Claude)",
+    visualMissing:"(غير مثبتة)", visualInstallAsk:"التجربة الفعلية تحتاج تثبيت Playwright (التحكم بالمتصفح) مرة واحدة، ويُنزَّل متصفح فقط إن لم يوجد Chrome أو Edge. التثبيت الآن؟",
+    visualInstalling:"جارٍ تثبيت التجربة الفعلية…", visualReady:"التجربة الفعلية جاهزة ✔", visualFailed:"تعذّر التثبيت:",
+    visTitle:"👁 تجربة البرنامج فعلياً (الجولة {n})", visOk:"✔ سليمة", visBad:"✘ ظهرت مشاكل — أُعيدت إلى النموذج", visSkip:"⏭ لم تُنفَّذ",
+    visRun:"التشغيل:", visShots:"{n} صورة", visReview:"👁 مراجعة {r}:", visRevOk:"✔ الصور سليمة", visRevBad:"✘ وجد مشاكل", visRevSkip:"لم تُراجع الصور بنموذج يرى الصور",
+    projApp:"أمر تشغيل البرنامج (فارغ = اكتشاف تلقائي، مثل npm run dev)", projUrl:"رابط البرنامج (فارغ = يُقرأ من مخرجاته)", projKind:"نوع البرنامج",
+    kindAuto:"تلقائي", kindWeb:"ويب", kindDesktop:"سطح مكتب", projSteps:"سيناريو التجربة (اختياري، خطوة في كل سطر)",
+    deep:"التفكير بعمق", showSent:"إظهار ما يحدث فعلياً", showSentTip:"مفعّل: كل ما يحدث (النص المرسل كاملاً، الأدوات والأوامر ونتائجها، التحقق، التجربة الفعلية والصور، التنبيهات). غير مفعّل: الطلبات والأجوبة فقط", working:"⏳ يعمل الآن:", workingN:"{n} خطوة", hint:"Claude Code ينفّذ كل رسالة داخل مجلد المشروع · Enter للإرسال · Shift+Enter لسطر جديد",
+    placeholder:"اكتب رسالتك…", welcome:"كيف أستطيع مساعدتك اليوم؟", welcomeSub:"اختر البوابة من الأعلى: OmniRoute أو FreeLLMAPI أو Claude — وClaude Code هو من ينفّذ في كل الحالات.",
+    dashboard:"لوحة التحكم", login:"تسجيل الدخول", logout:"تسجيل الخروج", start:"تشغيل", stop:"إيقاف", running:"يعمل", stopped:"متوقف",
+    notInstalled:"غير مثبت", loggedIn:"مسجّل الدخول", notLoggedIn:"غير مسجّل", project:"مجلد المشروع", projectAsk:"مسار مجلد المشروع (اتركه فارغاً لفتح نافذة الاختيار):",
+    rename:"اسم جديد للمحادثة:", del:"حذف هذه المحادثة؟", copy:"نسخ", copied:"تم النسخ", toMemory:"حفظ في الذاكرة", saved:"حُفظ",
+    sentFull:"النص المرسل كاملاً", gwDefault:"افتراضي البوابة", effortNone:"تلقائي", deepBadge:"تفكير بعمق", memBadge:"Memory",
+    files:"ملفات", attach:"إرفاق ملفات", export:"تصدير", startingGw:"جارٍ تشغيل البوابة…", loginOpened:"فُتحت نافذة تسجيل الدخول. أكمل التسجيل في المتصفح ثم عد هنا.",
+    sec:"ث", turns:"دورات", stopGen:"إيقاف", working:"يعمل…", tool:"أداة",
+    apTitle:"Claude Code يطلب إذناً لاستخدام", apOnce:"سماح", apConv:"سماح دائماً في هذه المحادثة", apDeny:"رفض",
+    apAllowed:"✔ تم السماح", apDenied:"✘ تم الرفض",
+    powerOn:"⏻ تشغيل", powerOff:"⏻ إيقاف", stoppingGw:"جارٍ الإيقاف…", gwStopped:"تم إيقاف البوابة.",
+    quit:"⏻ إغلاق Allinone", quitAsk:"إغلاق Allinone؟ ستتوقف البوابات التي شغّلها والردود الجارية.", quitDone:"تم إغلاق Allinone. يمكنك إغلاق هذه الصفحة. لتشغيله مجدداً: gui.cmd",
+    uploading:"جارٍ الرفع…", tooBig:"الملف {n} كبير جداً ({s} MB). الحد الأقصى {l} MB، ويمكن تغييره من gui.max_upload_mb في الإعدادات.",
+    uploadFail:"تعذّر رفع الملف {n}: انقطع الاتصال بنافذة Allinone. تأكد أنها ما زالت مفتوحة ثم أعد المحاولة.",
+    chats:"المحادثات", projects:"المشاريع", newProject:"+ مشروع جديد", projName:"اسم المشروع", projDesc:"وصف مختصر", projInstr:"تعليمات المشروع (تُرسل إلى Claude Code في كل محادثة داخل المشروع)",
+    projFolder:"مجلد العمل (فارغ = المجلد الحالي)", projGw:"البوابة الافتراضية", projModel:"النموذج الافتراضي", projFiles:"ملفات المعرفة", projAddFiles:"+ إضافة ملفات",
+    projChats:"محادثات المشروع", projNewChat:"+ محادثة جديدة في المشروع", projSave:"حفظ", projSaved:"تم الحفظ", projDel:"حذف المشروع", projDelAsk:"حذف المشروع وملفاته؟ (المحادثات تبقى في القائمة العامة)",
+    projNone:"لا توجد مشاريع بعد. المشروع يجمع تعليمات وملفات معرفة ومجلد عمل ومحادثات في مكان واحد — مثل مشاريع Claude.", projEmpty:"لا توجد محادثات بعد.", projIn:"داخل المشروع", projLeave:"خروج من المشروع",
+    projChatsN:"محادثات", projFilesN:"ملفات", projBack:"→ كل المشاريع", projNoFiles:"لا توجد ملفات. أضف مستندات أو أكواداً يرجع إليها Claude Code.", keepDefault:"(افتراضي)",
+    preOff:"🔒 إذن مسبق", preOn:"🔓 إذن مسبق مفعّل", preTip:"عند التفعيل يُسمح تلقائياً بطلبات Claude Code في هذه المحادثة دون نافذة سؤال. عند الإيقاف تظهر نافذة الإذن.",
+    preAuto:"🔓 سُمح تلقائياً (إذن مسبق): {t}", preNow:"تم السماح بـ {n} طلب كان ينتظر.",
+    report:"🧾 تقرير الأخطاء", reportTip:"تجميع الأخطاء والطرق المتبعة في ملف txt لإرساله إلى نموذج أذكى", reportTitle:"تقرير الأخطاء والطرق المتبعة",
+    reportNeedConv:"افتح محادثة أولاً.", reportDl:"⬇ تنزيل txt", reportSend:"➜ إرسال إلى نموذج آخر", reportSendTo:"البوابة:", reportReady:"جُهّز التقرير مرفقاً في محادثة جديدة. اختر النموذج ثم اضغط إرسال.",
+    reportInfo:"{c} حرف · محفوظ في {p}", reportOpenAnswer:"📥 لديّ الإجابة",
+    answer:"رفع إجابة", answerTip:"رفع إجابة من نموذج أذكى إلى هذه المحادثة ليطبّقها Claude Code", answerTitle:"📥 رفع إجابة خارجية",
+    answerHelp:"الصق الإجابة التي حصلت عليها (من Claude.ai أو أي نموذج آخر)، أو اختر ملف txt/md. سيقرؤها Claude Code ويطبّقها على المشروع في هذه المحادثة.",
+    answerFile:"📄 اختيار ملف", answerNote:"ملاحظة (اختياري)", answerSend:"إرسال للتطبيق", answerEmpty:"الصق الإجابة أولاً.", expertBadge:"📥 إجابة خارجية", close:"إغلاق", cancel:"إلغاء",
+    intrTitle:"⚠ انقطع العمل قبل أن يكتمل:", resume:"▶ متابعة", resumeVia:"▶ متابعة عبر {g} (بملف تسليم)", resumeAt:"يتجدد الحد عند {t}",
+    intrDetail:"التفاصيل", waitMsg:"↻ {r} — متابعة تلقائية ({a}/{m}) بعد {s}", waitCancel:"إلغاء المتابعة التلقائية", reattached:"هذه المحادثة ما زالت تعمل — تم الاتصال بها من جديد.",
+    perms:{acceptEdits:"تعديل الملفات تلقائياً", auto:"تلقائي ذكي (auto)", plan:"تخطيط فقط (قراءة)", bypassPermissions:"كل شيء بلا سؤال ⚠", default:"الافتراضي"}},
+  en: {newChat:"+ New chat", search:"Search chats", model:"Model", effort:"Effort", perm:"Permissions",
+    verify:"Verify & fix", verifyTip:"When the model says it is done, Allinone tests the result (tests/build); on failure it sends the error back to be fixed, asks for another approach if it repeats, then checks again",
+    vRound:"🔁 Automatic check (round {n})", vPass:"✔ passed", vFail:"✘ failed (code {code}) — sent back to the model to fix", vSelf:"🔎 No check command; the model was asked to test its own result",
+    vBadge:{passed:"✔ Verified", failed:"✘ Verification failed after {n} rounds", fixing:"✘ Last check failed", self:"🔎 Self-tested by the model", skipped:"", none:""},
+    projVerify:"Check command (e.g. npm test or pytest — empty = detect)",
+    quick:"Quick question", quickTip:"Sends the question straight to the gateway (like the playground), without smarter Code and without tools: very fast, but it cannot read project files or run commands. Turn it off to work on the project.", quickBadge:"💬 quick",
+    light:"Light mode", lightTip:"smarter Code with only the basic tools (commands, read, edit, write, search) and no add-ons or side requests: every request is much smaller, so free gateways answer faster.", lightBadge:"🪶 light",
+    failover:"Auto switch", failoverTip:"When every model of the gateway is busy (429) or it stops, the work moves on its own to the next gateway (FreeLLMAPI → OmniRoute → Claude) with a hand-over note.",
+    keys:"🔑 Keys", keysTitle:"🔑 FreeLLMAPI keys — tool-capable models", keysUsable:"Usable models now (tool-capable, with a key): {n}",
+    keysKeyless:"⚡ Enable the providers that need no key ({n})", keysKeylessNone:"All no-key providers are enabled.",
+    keysHelp:"Providers are sorted by how many tool-capable models they offer. Open the key page, create the key with your account and paste it here.", keysOpen:"🔗 Key page", keysPaste:"Paste the key…", keysAdd:"Add",
+    keysTools:"{n} tool-capable models", keysHave:"✔ added ({k})", keysAdded:"Added ✔ — usable models now: {n}", keysNeedCred:"Type the FreeLLMAPI dashboard e-mail and password (once):",
+    keysEmail:"E-mail", keysPass:"Password", keysSave:"Save", keysLoading:"Starting FreeLLMAPI and reading providers…",
+    fastLabel:"⚡ Fastest with tools (Allinone)", ctxWarn:"📏 This chat is large (≈{n} tokens of {m}). Large requests are slower and many models refuse them.", ctxNew:"↪ New chat that continues from here",
+    hoFrom:"↪ Continues from: {t}", reportShort:"Short report (errors and the step before only)",
+    webPill:"🌐 Claude.ai by hand", webTip:"Any Claude account in the browser (free too). Allinone prepares the whole request; you paste it into Claude.ai and paste the answer here, and the files are written into your project on your computer. Continue from another account any time.",
+    webTitle:"🌐 Claude.ai — any account, the project stays on your computer", webStep1:"1. Copy the request and paste it into a new Claude.ai chat (any account).", webCopy:"📋 Copy & open Claude.ai", webDl:"⬇ Download the request as a file",
+    webBig:"The request is large; if Claude.ai refuses the paste, download it and attach the file instead.", webInfo:"{c} characters · {f} project files", webStep2:"2. When Claude answers, press the copy button under its answer and paste it here:",
+    webPreview:"Preview changes", webApply:"Apply to the project", webNoFiles:"No files in the expected format were found; the answer is saved as text only.", webLater:"Later",
+    webAct:{create:"＋ new", modify:"✎ change", delete:"🗑 delete", same:"= unchanged", rejected:"✘ rejected"}, webRuns:"Commands suggested by the answer (run them with a button after applying):",
+    webWritten:"📝 Written into your project:", webUndo:"↩ Undo", webUndone:"These changes were undone.", webRun:"▶ Run", webPaste:"📥 Paste a Claude.ai answer", webCopied:"Copied ✔ — paste it into Claude.ai",
+    accAdd:"➕ Add account…", accRemove:"🗑 Remove this account", accName:"Account name (e.g. Work, Personal):", accRemoveAsk:"Remove this account from Allinone and sign it out? (projects and chats stay)", accTip:"The Claude account used. Each account has its own sign-in; switching account in a chat moves it with a hand-over note.",
+    visual:"Real test", visualTip:"Run the program for real, use it and take screenshots of each stage, have a model that sees review them, and send problems back to be fixed (like Claude)",
+    visualMissing:"(not installed)", visualInstallAsk:"Real testing needs Playwright (browser automation) installed once; a browser is downloaded only if Chrome/Edge is missing. Install now?",
+    visualInstalling:"Installing real testing…", visualReady:"Real testing is ready ✔", visualFailed:"Install failed:",
+    visTitle:"👁 Trying the program for real (round {n})", visOk:"✔ fine", visBad:"✘ problems — sent back to the model", visSkip:"⏭ not run",
+    visRun:"Run:", visShots:"{n} screenshots", visReview:"👁 Review by {r}:", visRevOk:"✔ screenshots look right", visRevBad:"✘ found problems", visRevSkip:"Screenshots were not reviewed by a model that sees",
+    projApp:"Command to start the program (empty = detect, e.g. npm run dev)", projUrl:"Program URL (empty = read from its output)", projKind:"Program type",
+    kindAuto:"Auto", kindWeb:"Web", kindDesktop:"Desktop", projSteps:"Test scenario (optional, one step per line)",
+    deep:"Deep thinking", showSent:"Show what actually happens", showSentTip:"On: everything (full sent text, tools and commands with results, checks, real tests and screenshots, notices). Off: only requests and answers", working:"⏳ Working:", workingN:"{n} steps", hint:"Claude Code runs every message in the project folder · Enter to send · Shift+Enter for a new line",
+    placeholder:"Write your message…", welcome:"How can I help you today?", welcomeSub:"Pick the gateway at the top: OmniRoute, FreeLLMAPI or Claude — Claude Code does the work in every case.",
+    dashboard:"Dashboard", login:"Sign in", logout:"Sign out", start:"Start", stop:"Stop", running:"running", stopped:"stopped",
+    notInstalled:"not installed", loggedIn:"signed in", notLoggedIn:"not signed in", project:"Project folder", projectAsk:"Project folder path (leave empty to open a folder picker):",
+    rename:"New conversation name:", del:"Delete this conversation?", copy:"Copy", copied:"Copied", toMemory:"Save to memory", saved:"Saved",
+    sentFull:"Full text sent", gwDefault:"gateway default", effortNone:"auto", deepBadge:"deep thinking", memBadge:"Memory",
+    files:"files", attach:"Attach files", export:"Export", startingGw:"Starting the gateway…", loginOpened:"A sign-in window was opened. Finish in your browser, then come back.",
+    sec:"s", turns:"turns", stopGen:"Stop", working:"Working…", tool:"Tool",
+    apTitle:"Claude Code asks permission to use", apOnce:"Allow", apConv:"Always allow in this chat", apDeny:"Deny",
+    apAllowed:"✔ Allowed", apDenied:"✘ Denied",
+    powerOn:"⏻ Start", powerOff:"⏻ Stop", stoppingGw:"Stopping…", gwStopped:"Gateway stopped.",
+    quit:"⏻ Quit Allinone", quitAsk:"Quit Allinone? Gateways it started and running replies will stop.", quitDone:"Allinone was closed. You can close this page. To start it again: gui.cmd",
+    uploading:"Uploading…", tooBig:"{n} is too large ({s} MB). The limit is {l} MB (gui.max_upload_mb in the config).",
+    uploadFail:"Could not upload {n}: the connection to the Allinone window was lost. Make sure it is still open and try again.",
+    chats:"Chats", projects:"Projects", newProject:"+ New project", projName:"Project name", projDesc:"Short description", projInstr:"Project instructions (sent to Claude Code in every chat of the project)",
+    projFolder:"Working folder (empty = current folder)", projGw:"Default gateway", projModel:"Default model", projFiles:"Knowledge files", projAddFiles:"+ Add files",
+    projChats:"Project chats", projNewChat:"+ New chat in project", projSave:"Save", projSaved:"Saved", projDel:"Delete project", projDelAsk:"Delete the project and its files? (its chats stay in the main list)",
+    projNone:"No projects yet. A project keeps instructions, knowledge files, a working folder and chats together — like Claude Projects.", projEmpty:"No chats yet.", projIn:"In project", projLeave:"Leave project",
+    projChatsN:"chats", projFilesN:"files", projBack:"← All projects", projNoFiles:"No files yet. Add documents or code for Claude Code to refer to.", keepDefault:"(default)",
+    preOff:"🔒 Pre-approve", preOn:"🔓 Pre-approved", preTip:"When on, Claude Code permission requests in this chat are allowed automatically. When off, the permission card appears.",
+    preAuto:"🔓 Allowed automatically (pre-approved): {t}", preNow:"Allowed {n} waiting request(s).",
+    report:"🧾 Error report", reportTip:"Collect the errors and the approaches tried into a txt file for a smarter model", reportTitle:"Errors & approaches report",
+    reportNeedConv:"Open a chat first.", reportDl:"⬇ Download txt", reportSend:"➜ Send to another model", reportSendTo:"Gateway:", reportReady:"The report is attached to a new chat. Pick the model and press send.",
+    reportInfo:"{c} chars · saved at {p}", reportOpenAnswer:"📥 I have the answer",
+    answer:"Upload answer", answerTip:"Upload an answer from a smarter model into this chat so Claude Code applies it", answerTitle:"📥 Upload an external answer",
+    answerHelp:"Paste the answer you got (from Claude.ai or any other model) or pick a txt/md file. Claude Code will read it and apply it to the project in this chat.",
+    answerFile:"📄 Pick a file", answerNote:"Note (optional)", answerSend:"Send to apply", answerEmpty:"Paste the answer first.", expertBadge:"📥 external answer", close:"Close", cancel:"Cancel",
+    intrTitle:"⚠ The work stopped before it finished:", resume:"▶ Continue", resumeVia:"▶ Continue via {g} (with a hand-over note)", resumeAt:"The limit resets at {t}",
+    intrDetail:"Details", waitMsg:"↻ {r} — automatic resume ({a}/{m}) in {s}", waitCancel:"Cancel automatic resume", reattached:"This chat is still running — reconnected to it.",
+    perms:{acceptEdits:"Edit files automatically", auto:"Smart auto (auto)", plan:"Plan only (read)", bypassPermissions:"Everything, no questions ⚠", default:"Default"}}
+};
+const $ = s => document.querySelector(s);
+const TOKEN = (()=>{ const m = location.hash.match(/t=([\w-]+)/); if(m){ sessionStorage.setItem("aio-token", m[1]); history.replaceState(null,"",location.pathname); return m[1]; } return sessionStorage.getItem("aio-token") || ""; })();
+const LS = { get(k,d){ try{ const v = localStorage.getItem("aio-"+k); return v===null?d:JSON.parse(v);}catch(e){return d;} }, set(k,v){ try{ localStorage.setItem("aio-"+k, JSON.stringify(v)); }catch(e){} } };
+let S = {lang:"ar", state:null, gateway:null, conv:null, messages:[], running:null, auth:null, attachments:[], project:"",
+  tab:"chats", view:"chat", projects:[], projectId:null, projectName:"", pview:null, preapprove:false, savedFolder:null};
+/* Display name instead of "Claude"/"Anthropic" (config: branding.name). Commands, paths and the
+   real model ids sent to the server are not changed. */
+function BRAND(){ return (S.state && S.state.brand) || ""; }
+function brandText(s){
+  const b = BRAND(); if(!b || typeof s!=="string") return s;
+  return s.replace(/\bClaude\.ai\b/g, b + (S.lang==="ar"?" (ويب)":" (web)")).replace(/\b(Claude|Anthropic)\b/g, b);
+}
+const MODEL_RE = /\bclaude(?=[-_ .]?(?:\d|opus|sonnet|haiku|fable|mythos|instant|code|v\d))/gi;
+function maskModel(m){ const b = BRAND(); if(!b || !m) return m; return String(m).replace(MODEL_RE, b.toLowerCase()).replace(/\banthropic\//gi, b.toLowerCase()+"/"); }
+let MODELMAP = new Map();
+function realModel(v){
+  if(!v) return v; if(MODELMAP.has(v)) return MODELMAP.get(v);
+  const b = BRAND(); if(!b) return v;
+  const q = b.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  return v.replace(new RegExp("\\b"+q+"/","gi"), "anthropic/").replace(new RegExp("\\b"+q+"(?=[-_ .])","gi"), "claude");
+}
+const t = k => { const v = (I18N[S.lang]||I18N.ar)[k] ?? k; return typeof v==="string" ? brandText(v) : v; };
+
+async function api(path, opts={}){
+  const res = await fetch(path, {method: opts.method||"GET", headers: {"X-Allinone-Token": TOKEN, "Content-Type":"application/json"}, body: opts.body?JSON.stringify(opts.body):undefined});
+  let data = null; try{ data = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error((data && data.error) || ("HTTP "+res.status));
+  return data;
+}
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- markdown (safe: everything is escaped first) ---------- */
+function inline(s){
+  const codes = [];
+  s = s.replace(/`([^`\n]+)`/g, (_,c)=>{ codes.push(c); return "\u0000"+(codes.length-1)+"\u0000"; });
+  s = esc(s);
+  s = s.replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>").replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g,"$1<em>$2</em>");
+  s = s.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,'$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  return s.replace(/\u0000(\d+)\u0000/g, (_,i)=>"<code>"+esc(codes[+i])+"</code>");
+}
+function md(src){
+  const out = []; const lines = String(src||"").replace(/\r\n/g,"\n").split("\n"); let i = 0;
+  while(i < lines.length){
+    let line = lines[i];
+    const fence = line.match(/^\s*```\s*([\w+#.-]*)/);
+    if(fence){ const buf=[]; i++; while(i<lines.length && !/^\s*```/.test(lines[i])){ buf.push(lines[i]); i++; } i++;
+      out.push('<pre><button class="copy" data-copy>'+t("copy")+'</button><code>'+esc(buf.join("\n"))+'</code></pre>'); continue; }
+    if(/^\s*$/.test(line)){ i++; continue; }
+    const h = line.match(/^(#{1,4})\s+(.*)/);
+    if(h){ out.push("<h"+(h[1].length+1)+' dir="auto">'+inline(h[2])+"</h"+(h[1].length+1)+">"); i++; continue; }
+    if(/^\s*(---|\*\*\*)\s*$/.test(line)){ out.push("<hr>"); i++; continue; }
+    if(/^\s*\|.*\|\s*$/.test(line) && i+1<lines.length && /^\s*\|?[\s:-]+\|[\s|:-]*$/.test(lines[i+1])){
+      const row = l => l.trim().replace(/^\||\|$/g,"").split("|").map(c=>inline(c.trim()));
+      let html = "<table><thead><tr>"+row(line).map(c=>"<th>"+c+"</th>").join("")+"</tr></thead><tbody>"; i+=2;
+      while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ html += "<tr>"+row(lines[i]).map(c=>"<td>"+c+"</td>").join("")+"</tr>"; i++; }
+      out.push(html+"</tbody></table>"); continue; }
+    if(/^\s*>/.test(line)){ const buf=[]; while(i<lines.length && /^\s*>/.test(lines[i])){ buf.push(lines[i].replace(/^\s*>\s?/,"")); i++; }
+      out.push('<blockquote dir="auto">'+md(buf.join("\n"))+"</blockquote>"); continue; }
+    const li = line.match(/^\s*([-*+]|\d+[.)])\s+/);
+    if(li){ const ordered = /\d/.test(li[1]); const items=[];
+      while(i<lines.length && /^\s*([-*+]|\d+[.)])\s+/.test(lines[i])){ items.push(lines[i].replace(/^\s*([-*+]|\d+[.)])\s+/,"")); i++;
+        while(i<lines.length && /^\s{2,}\S/.test(lines[i]) && !/^\s*([-*+]|\d+[.)])\s+/.test(lines[i])){ items[items.length-1] += " "+lines[i].trim(); i++; } }
+      out.push((ordered?"<ol>":"<ul>")+items.map(x=>'<li dir="auto">'+inline(x)+"</li>").join("")+(ordered?"</ol>":"</ul>")); continue; }
+    const buf=[]; while(i<lines.length && !/^\s*$/.test(lines[i]) && !/^\s*```/.test(lines[i]) && !/^(#{1,4})\s/.test(lines[i]) && !/^\s*([-*+]|\d+[.)])\s+/.test(lines[i]) && !/^\s*>/.test(lines[i])){ buf.push(lines[i]); i++; }
+    out.push('<p dir="auto">'+buf.map(inline).join("<br>")+"</p>");
+  }
+  return out.join("\n");
+}
+
+/* ---------- language & theme ---------- */
+function applyLang(){
+  document.documentElement.lang = S.lang; document.documentElement.dir = S.lang==="ar"?"rtl":"ltr";
+  document.querySelectorAll("[data-i]").forEach(e=>e.textContent=t(e.dataset.i));
+  $("#newChat").textContent=t("newChat"); $("#search").placeholder=t("search"); $("#input").placeholder=t("placeholder");
+  $("#langBtn").textContent = S.lang==="ar"?"EN":"ع"; $("#attachBtn").title=t("attach"); $("#quitBtn").textContent=t("quit");
+  $("#tSent").title=t("showSentTip"); $("#tFailover").title=t("failoverTip"); $("#tQuick").title=t("quickTip"); $("#tLight").title=t("lightTip"); $("#keysBtn").textContent=t("keys"); $("#tVerify").title=t("verifyTip"); $("#tVisual").title=t("visualTip"); renderVisualToggle(); $("#answerBtn").title=t("answerTip"); $("#answerBtn").textContent="📥 "+t("answer"); $("#reportBtn").textContent=t("report"); $("#reportBtn").title=t("reportTip"); $("#preBtn").title=t("preTip");
+  $("#newChat").textContent = S.tab==="projects" ? t("newProject") : t("newChat");
+  fillSelects(); renderPills(); renderPre(); renderProjChip(); S.view==="project" ? renderProjectView() : renderThread();
+}
+function applyTheme(th){ document.documentElement.dataset.theme = th; LS.set("theme", th); }
+$("#themeBtn").onclick = ()=>applyTheme(document.documentElement.dataset.theme==="dark"?"light":"dark");
+$("#langBtn").onclick = async ()=>{ S.lang = S.lang==="ar"?"en":"ar"; LS.set("lang", S.lang); try{ await api("/api/lang",{method:"POST",body:{lang:S.lang}}); }catch(e){} applyLang(); };
+$("#sideBtn").onclick = ()=>$("#app").classList.toggle("side-hidden");
+
+function fillSelects(){
+  if(!S.state) return;
+  const eff = $("#effort"), perm = $("#perm"); const ev = LS.get("effort",""), pv = LS.get("perm", S.state.default_permission_mode);
+  eff.innerHTML = S.state.efforts.map(e=>`<option value="${esc(e)}">${esc(e||t("effortNone"))}</option>`).join(""); eff.value = ev;
+  perm.innerHTML = S.state.permission_modes.map(m=>`<option value="${esc(m)}">${esc((t("perms")||{})[m]||m)}</option>`).join(""); perm.value = pv;
+}
+$("#effort").onchange = e=>LS.set("effort", e.target.value);
+$("#perm").onchange = e=>LS.set("perm", e.target.value);
+
+/* ---------- toggles ---------- */
+for(const [id, key] of [["quick","quick"],["light","light"],["failover","failover"],["visual","visual"],["verify","verify"],["deep","deep"],["memory","memory"],["showSent","showSent"]]){
+  const box = $("#"+id); box.checked = LS.get(key, key==="verify" || key==="visual");
+  const lab = box.closest(".toggle"); lab.classList.toggle("on", box.checked);
+  box.onchange = ()=>{ LS.set(key, box.checked); lab.classList.toggle("on", box.checked); if(key==="showSent"){ renderThread(); if(S.running) drawRun(S.running); } };
+}
+
+/* ---------- gateways ---------- */
+function gwInfo(name){ return (S.state.gateways||[]).find(g=>g.name===name); }
+const WEB = "__web__";
+let ACCOUNTS = [];
+async function loadAccounts(){ try{ ACCOUNTS = (await api("/api/accounts")).accounts; }catch(e){ ACCOUNTS = []; } renderAccounts(); }
+function renderAccounts(){
+  const sel = $("#account"); const g = gwInfo(S.gateway);
+  if(!g || g.type!=="anthropic"){ sel.style.display="none"; return; }
+  sel.style.display=""; sel.title = t("accTip");
+  if(!ACCOUNTS.some(a=>a.id===S.account)) S.account = (ACCOUNTS.find(a=>a.active)||ACCOUNTS[0]||{id:"default"}).id;
+  sel.innerHTML = ACCOUNTS.map(a=>`<option value="${esc(a.id)}" ${a.id===S.account?"selected":""}>👤 ${esc(a.name)}</option>`).join("")
+    + `<option value="__add">${esc(t("accAdd"))}</option>` + (S.account!=="default"?`<option value="__rm">${esc(t("accRemove"))}</option>`:"");
+}
+$("#account").onchange = async e=>{
+  const v = e.target.value;
+  if(v==="__add"){
+    const name = prompt(t("accName")); if(name && name.trim()){ try{ const r = await api("/api/accounts",{method:"POST",body:{action:"add",name:name.trim()}}); ACCOUNTS = r.accounts; S.account = r.id; }catch(err){ banner(err.message,true); } }
+  } else if(v==="__rm"){
+    if(confirm(t("accRemoveAsk"))){ try{ ACCOUNTS = (await api("/api/accounts",{method:"POST",body:{action:"remove",id:S.account}})).accounts; S.account = "default"; }catch(err){ banner(err.message,true); } }
+  } else {
+    S.account = v; try{ await api("/api/accounts",{method:"POST",body:{action:"activate",id:v}}); }catch(err){}
+  }
+  LS.set("account", S.account); renderAccounts(); refreshAuth();
+};
+function renderPills(){
+  if(!S.state) return;
+  $("#gwPills").innerHTML = S.state.gateways.map(g=>{
+    let cls = "d-" + (!g.installed ? "err" : g.type==="anthropic" ? (S.auth==null ? "off" : (S.auth.loggedIn ? "up" : "warn")) : (g.up ? "up" : "off"));
+    const tip = !g.installed ? t("notInstalled") : g.type==="anthropic" ? (S.auth&&S.auth.loggedIn?t("loggedIn"):t("notLoggedIn")) : (g.up?t("running"):t("stopped"));
+    return `<button class="pill ${g.name===S.gateway?"active":""}" data-gw="${esc(g.name)}" title="${esc(tip)}"><span class="dot ${cls}"></span>${esc(g.title)}</button>`;
+  }).join("") + `<button class="pill ${S.gateway===WEB?"active":""}" data-gw="${WEB}" title="${esc(t("webTip"))}">${esc(t("webPill"))}</button>`;
+  document.querySelectorAll(".pill").forEach(b=>b.onclick=()=>selectGateway(b.dataset.gw));
+  const g = gwInfo(S.gateway); const act = $("#gwAction"); const pw = $("#gwPower");
+  renderAccounts();
+  $("#keysBtn").style.display = (g && g.type==="freellmapi") ? "" : "none";
+  if(!g){ act.style.display="none"; pw.style.display="none"; return; } act.style.display="";
+  if(g.type==="anthropic" || !g.can_start || !g.installed){ pw.style.display="none"; }
+  else { pw.style.display=""; pw.textContent = g.up ? t("powerOff") : t("powerOn"); pw.classList.toggle("on", g.up); }
+  act.textContent = g.type==="anthropic" ? (S.auth&&S.auth.loggedIn ? t("logout") : t("login")) : t("dashboard");
+}
+async function selectGateway(name){
+  S.gateway = name; LS.set("gateway", name); renderPills(); loadModels();
+}
+$("#gwAction").onclick = async ()=>{
+  const g = gwInfo(S.gateway); if(!g) return;
+  try{
+    if(g.type==="anthropic"){
+      if(S.auth && S.auth.loggedIn){ await api("/api/logout",{method:"POST",body:{account:S.account}}); await refreshAuth(); }
+      else { await api("/api/login",{method:"POST",body:{account:S.account}}); banner(t("loginOpened")); pollAuth(); }
+      return;
+    }
+    banner(t("startingGw"));
+    const r = await api("/api/dashboard",{method:"POST",body:{name:g.name}});
+    banner((r.notes||[]).join(" · ") || ""); window.open(r.url, "_blank");
+    await refreshState(); loadModels();
+  }catch(e){ banner(e.message, true); }
+};
+$("#gwPower").onclick = async ()=>{
+  const g = gwInfo(S.gateway); if(!g) return; const pw = $("#gwPower"); pw.disabled = true;
+  try{
+    if(g.up){ pw.textContent = t("stoppingGw"); const r = await api("/api/gateway",{method:"POST",body:{name:g.name, action:"stop"}});
+      if(r.ok===false) banner(r.error, true); else banner(t("gwStopped")); }
+    else { pw.textContent = t("startingGw"); const r = await api("/api/gateway",{method:"POST",body:{name:g.name, action:"start"}});
+      banner((r.notes||[]).join(" · ")); }
+  }catch(e){ banner(e.message, true); }
+  pw.disabled = false; await refreshState(); loadModels();
+};
+$("#quitBtn").onclick = async ()=>{
+  if(!confirm(t("quitAsk"))) return;
+  try{ await api("/api/shutdown",{method:"POST"}); }catch(e){}
+  document.body.innerHTML = `<div style="padding:60px;text-align:center;font-size:18px">${esc(t("quitDone"))}</div>`;
+};
+async function refreshAuth(){ try{ S.auth = await api("/api/auth"+(S.account?"?account="+encodeURIComponent(S.account):"")); }catch(e){ S.auth = {loggedIn:false}; } renderPills(); }
+function pollAuth(n=0){ setTimeout(async()=>{ await refreshAuth(); if(!(S.auth&&S.auth.loggedIn) && n<60) pollAuth(n+1); else if(S.auth&&S.auth.loggedIn) banner(""); }, 3000); }
+async function loadModels(){
+  if(S.gateway===WEB){ $("#model").value=""; $("#model").placeholder=brandText("Claude.ai"); $("#modelList").innerHTML=""; return; }
+  const g = gwInfo(S.gateway); const input = $("#model");
+  input.value = LS.get("model:"+S.gateway, "");
+  input.placeholder = maskModel((g && g.default_model)) || t("gwDefault");
+  $("#modelList").innerHTML = "";
+  try{ const r = await api("/api/models?gateway="+encodeURIComponent(S.gateway));
+    MODELMAP = new Map((r.models||[]).map(m=>[maskModel(m), m]));
+    const extra = g && g.type==="freellmapi" ? [[S.state.fast_model, t("fastLabel")]] : g && g.type==="omniroute" ? [["auto/coding","auto/coding — combo"],["auto/fast","auto/fast — combo"]] : [];
+    $("#modelList").innerHTML = extra.map(([v,l])=>`<option value="${esc(v)}" label="${esc(l)}">`).join("")
+      + (r.models||[]).slice(0,400).map(m=>`<option value="${esc(maskModel(m))}">`).join(""); }catch(e){}
+}
+$("#model").onchange = e=>LS.set("model:"+S.gateway, e.target.value.trim());
+
+/* ---------- project folder ---------- */
+function showProject(){ const p = S.project||""; $("#projectBtn").textContent = "📁 " + (p.split(/[\\/]/).filter(Boolean).pop()||p); $("#projectBtn").title = p; }
+$("#projectBtn").onclick = async ()=>{
+  const v = prompt(t("projectAsk"), S.project); if(v===null) return;
+  try{ const r = await api("/api/project",{method:"POST",body: v.trim()? {path:v.trim()} : {path:S.project, browse:true}});
+    S.project = r.path; LS.set("project", S.project); showProject(); }catch(e){ banner(e.message, true); }
+};
+
+/* ---------- conversations ---------- */
+async function loadConvs(){
+  if(S.tab==="projects") return loadProjects();
+  const q = $("#search").value.trim();
+  const r = await api("/api/conversations"+(q?"?q="+encodeURIComponent(q):""));
+  const pname = id => (S.projects.find(p=>p.id===id)||{}).name || "";
+  $("#convList").innerHTML = r.conversations.map(c=>`<div class="conv ${S.conv===c.id?"active":""}" data-id="${c.id}"><span class="t" dir="auto">${c.project_id?`<span class="tag">📂 ${esc(pname(c.project_id))} · </span>`:""}${c.running?"⏳ ":""}${esc(c.title||"…")}</span>
+    <span class="acts"><button data-act="ren" title="rename">✎</button><button data-act="exp" title="${esc(t("export"))}">⇩</button><button data-act="del" title="delete">🗑</button></span></div>`).join("");
+  document.querySelectorAll(".conv").forEach(el=>el.onclick = async ev=>{
+    const id = +el.dataset.id; const act = ev.target.dataset && ev.target.dataset.act;
+    if(act==="del"){ if(confirm(t("del"))){ await api("/api/conversations/"+id,{method:"DELETE"}); if(S.conv===id) newChat(); loadConvs(); } return; }
+    if(act==="ren"){ const n = prompt(t("rename"), el.querySelector(".t").textContent); if(n){ await api(`/api/conversations/${id}/rename`,{method:"POST",body:{title:n}}); loadConvs(); } return; }
+    if(act==="exp"){ const r = await fetch(`/api/conversations/${id}/export`,{headers:{"X-Allinone-Token":TOKEN}}); const b = await r.blob();
+      const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `conversation-${id}.md`; a.click(); return; }
+    openConv(id);
+  });
+}
+let searchTimer; $("#search").oninput = ()=>{ clearTimeout(searchTimer); searchTimer = setTimeout(loadConvs, 250); };
+async function openConv(id){
+  if(S.running) return;
+  const r = await api("/api/conversations/"+id); S.conv = id; S.view = "chat";
+  S.messages = r.conversation.running ? r.messages.filter(m=>!(m.role==="assistant" && m.meta && m.meta.running)) : r.messages;
+  S.projectId = r.conversation.project_id || null; S.projectName = r.conversation.project_name || "";
+  S.preapprove = !!r.conversation.preapproved;
+  if(r.conversation.project){ S.project = r.conversation.project; showProject(); }
+  if(r.conversation.gateway==="claude.ai") selectGateway(WEB);
+  else if(r.conversation.gateway && gwInfo(r.conversation.gateway)) selectGateway(r.conversation.gateway);
+  const sg = r.conversation.session_gateway||""; if(sg.includes("#")){ S.account = sg.split("#")[1]; LS.set("account", S.account); renderAccounts(); refreshAuth(); }
+  renderPre(); renderProjChip(); renderThread(); loadConvs();
+  if(r.conversation.running) watchConv(id);
+}
+/* A reply that is still running on the server (page reloaded, another tab...): follow it. */
+async function watchConv(id){
+  const el = document.createElement("div"); el.className = "msg assistant"; el.innerHTML = `<div class="body"></div>`;
+  const run = {el, body: el.querySelector(".body"), parts: [], runId:null, watch:true};
+  S.running = run; updateSend(); renderThread(); banner(t("reattached"));
+  while(S.running===run && S.conv===id){
+    let st; try{ st = await api(`/api/conversations/${id}/live`); }catch(e){ break; }
+    if(!st.running) break;
+    run.runId = st.run_id;
+    const old = Object.fromEntries(run.parts.filter(x=>x.kind==="approval").map(x=>[x.id,x]));
+    run.parts = (st.parts||[]).map(p=>p.kind==="text"&&p.error?{kind:"error",text:p.text}:p)
+      .concat((st.pending||[]).map(a=>old[a.id]||{kind:"approval", id:a.id, tool:a.tool, input:a.input, state:null}))
+      .concat(st.waiting?[{kind:"wait", until:st.waiting.until, title:st.waiting.title, attempt:st.waiting.attempt, max:st.waiting.max}]:[]);
+    drawRun(run);
+    await new Promise(r=>setTimeout(r, 1000));
+  }
+  if(S.running===run){ S.running = null; updateSend(); banner(""); if(S.conv===id) openConv(id); }
+}
+function newChat(keepProject){
+  if(S.running) return; S.conv = null; S.messages = []; S.view = "chat"; S.preapprove = false;
+  if(!keepProject){ S.projectId = null; S.projectName = ""; if(S.savedFolder){ S.project = S.savedFolder; S.savedFolder = null; showProject(); } }
+  renderPre(); renderProjChip(); renderThread(); loadConvs(); $("#input").focus();
+}
+$("#newChat").onclick = ()=>{ if(S.tab==="projects") createProject(); else newChat(); };
+$("#tabChats").onclick = ()=>setTab("chats");
+$("#tabProjects").onclick = ()=>setTab("projects");
+function setTab(tab){ S.tab = tab; $("#tabChats").classList.toggle("active", tab==="chats"); $("#tabProjects").classList.toggle("active", tab==="projects");
+  $("#newChat").textContent = tab==="projects" ? t("newProject") : t("newChat"); $("#search").style.display = tab==="projects" ? "none" : "";
+  if(tab==="projects" && S.view!=="project" && !S.running){ S.view = "project"; S.pview = null; renderProjectView(); }
+  loadConvs(); }
+
+/* ---------- projects ---------- */
+async function loadProjects(){
+  try{ S.projects = (await api("/api/projects")).projects; }catch(e){ return; }
+  if(S.tab!=="projects") return;
+  $("#convList").innerHTML = S.projects.map(p=>`<div class="conv ${S.pview&&S.pview.id===p.id?"active":""}" data-pid="${p.id}"><span class="t" dir="auto">📂 ${esc(p.name)}</span><span class="tag">${p.chats}</span></div>`).join("");
+  document.querySelectorAll("[data-pid]").forEach(el=>el.onclick=()=>openProject(+el.dataset.pid));
+  if(S.view==="project" && !S.pview) renderProjectView();
+}
+async function createProject(){
+  const name = prompt(t("projName")); if(!name || !name.trim()) return;
+  try{ const r = await api("/api/projects",{method:"POST",body:{name:name.trim(), folder:"", gateway:S.gateway||""}}); await loadProjects(); openProject(r.project.id); }
+  catch(e){ banner(e.message,true); }
+}
+async function openProject(id){
+  if(S.running) return;
+  try{ S.pview = (await api("/api/projects/"+id)).project; }catch(e){ banner(e.message,true); return; }
+  S.view = "project"; renderProjectView(); loadProjects();
+}
+function renderProjectView(){
+  const th = $("#thread");
+  if(!S.pview){
+    th.innerHTML = `<div class="pview"><h2>📂 ${esc(t("projects"))}</h2><div class="sub">${esc(t("projNone"))}</div>
+      <button class="btn primary" id="pvNew">${esc(t("newProject"))}</button>
+      <div class="plist">${S.projects.map(p=>`<div class="card pcard" data-open="${p.id}"><b dir="auto">📂 ${esc(p.name)}</b><div class="d" dir="auto">${esc(p.description||"")}</div>
+        <div class="n">${p.chats} ${esc(t("projChatsN"))} · ${p.files} ${esc(t("projFilesN"))}</div></div>`).join("")}</div></div>`;
+    $("#pvNew").onclick = createProject;
+    th.querySelectorAll("[data-open]").forEach(el=>el.onclick=()=>openProject(+el.dataset.open));
+    return;
+  }
+  const p = S.pview;
+  const gwOpts = `<option value="">${esc(t("keepDefault"))}</option>` + (S.state?S.state.gateways:[]).map(g=>`<option value="${esc(g.name)}" ${g.name===p.gateway?"selected":""}>${esc(g.title)}</option>`).join("");
+  th.innerHTML = `<div class="pview">
+    <button class="btn small ghost" id="pvBack">${esc(t("projBack"))}</button>
+    <h2 dir="auto">📂 ${esc(p.name)}</h2><div class="sub" dir="auto">${esc(p.description||"")}</div>
+    <div class="mbtns" style="margin-bottom:14px"><button class="btn primary" id="pvChat">${esc(t("projNewChat"))}</button></div>
+    <div class="pgrid">
+      <div class="card"><h3>⚙</h3>
+        <label>${esc(t("projName"))}</label><input id="pvName" dir="auto" value="${esc(p.name)}">
+        <label>${esc(t("projDesc"))}</label><input id="pvDesc" dir="auto" value="${esc(p.description||"")}">
+        <label>${esc(t("projInstr"))}</label><textarea id="pvInstr" dir="auto">${esc(p.instructions||"")}</textarea>
+        <label>${esc(t("projFolder"))}</label><div style="display:flex;gap:6px"><input id="pvFolder" dir="ltr" value="${esc(p.folder||"")}"><button class="btn small" id="pvBrowse">📁</button></div>
+        <label>${esc(t("projGw"))}</label><select id="pvGw">${gwOpts}</select>
+        <label>${esc(t("projModel"))}</label><input id="pvModel" dir="ltr" value="${esc(maskModel(p.model||""))}" placeholder="${esc(t("keepDefault"))}">
+        <label>🔁 ${esc(t("projVerify"))}</label><input id="pvVerify" dir="ltr" value="${esc(p.verify_command||"")}" placeholder="npm test">
+        <label>👁 ${esc(t("projApp"))}</label><input id="pvApp" dir="ltr" value="${esc(p.app_command||"")}" placeholder="npm run dev">
+        <label>👁 ${esc(t("projUrl"))}</label><input id="pvUrl" dir="ltr" value="${esc(p.app_url||"")}" placeholder="http://localhost:5173/">
+        <label>👁 ${esc(t("projKind"))}</label><select id="pvKind">${[["auto","kindAuto"],["web","kindWeb"],["desktop","kindDesktop"]].map(([k,l])=>`<option value="${k}" ${(p.app_kind||"auto")===k?"selected":""}>${esc(t(l))}</option>`).join("")}</select>
+        <label>👁 ${esc(t("projSteps"))}</label><textarea id="pvSteps" dir="auto" style="min-height:90px" placeholder="click تسجيل الدخول&#10;fill #email => test@example.com&#10;fill #password => 123456&#10;click دخول&#10;expect لوحة التحكم&#10;screenshot بعد الدخول">${esc(p.visual_steps||"")}</textarea>
+        <div class="mbtns" style="margin-top:12px"><button class="btn primary" id="pvSave">${esc(t("projSave"))}</button><span class="muted" id="pvMsg"></span><span class="spacer"></span><button class="btn small" id="pvDel">🗑 ${esc(t("projDel"))}</button></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card"><h3>📚 ${esc(t("projFiles"))}</h3><button class="btn small" id="pvAdd">${esc(t("projAddFiles"))}</button>
+          <div class="flist">${p.files.length ? p.files.map(f=>`<div class="fitem"><span dir="auto" title="${esc(f.path)}">📄 ${esc(f.name)}</span><small>${Math.ceil(f.size/1024)} KB</small><button data-fdel="${f.id}">✕</button></div>`).join("") : `<div class="muted">${esc(t("projNoFiles"))}</div>`}</div></div>
+        <div class="card"><h3>💬 ${esc(t("projChats"))}</h3>${p.conversations.length ? p.conversations.map(c=>`<div class="pconv" data-conv="${c.id}" dir="auto">${esc(c.title||"…")}</div>`).join("") : `<div class="muted">${esc(t("projEmpty"))}</div>`}</div>
+      </div>
+    </div></div>`;
+  $("#pvBack").onclick = ()=>{ S.pview = null; renderProjectView(); loadProjects(); };
+  $("#pvChat").onclick = ()=>startProjectChat(p);
+  $("#pvSave").onclick = async ()=>{
+    try{ const r = await api("/api/projects/"+p.id,{method:"POST",body:{name:$("#pvName").value, description:$("#pvDesc").value, instructions:$("#pvInstr").value,
+        folder:$("#pvFolder").value.trim(), gateway:$("#pvGw").value, model:realModel($("#pvModel").value.trim()), verify_command:$("#pvVerify").value.trim(),
+        app_command:$("#pvApp").value.trim(), app_url:$("#pvUrl").value.trim(), app_kind:$("#pvKind").value, visual_steps:$("#pvSteps").value}});
+      S.pview = r.project; renderProjectView(); $("#pvMsg").textContent = t("projSaved"); loadProjects(); }catch(e){ $("#pvMsg").textContent = e.message; }
+  };
+  $("#pvBrowse").onclick = async ()=>{ try{ const r = await api("/api/project",{method:"POST",body:{path:$("#pvFolder").value.trim()||S.project, browse:true}}); $("#pvFolder").value = r.path; }catch(e){ banner(e.message,true); } };
+  $("#pvDel").onclick = async ()=>{ if(!confirm(t("projDelAsk"))) return; await api("/api/projects/"+p.id,{method:"DELETE"}); if(S.projectId===p.id){ S.projectId=null; renderProjChip(); } S.pview = null; renderProjectView(); loadProjects(); };
+  $("#pvAdd").onclick = ()=>$("#projFileInput").click();
+  th.querySelectorAll("[data-fdel]").forEach(b=>b.onclick=async()=>{ await api(`/api/projects/${p.id}/files/${b.dataset.fdel}`,{method:"DELETE"}); openProject(p.id); });
+  th.querySelectorAll("[data-conv]").forEach(el=>el.onclick=()=>openConv(+el.dataset.conv));
+}
+$("#projFileInput").onchange = async e=>{
+  const list = [...e.target.files]; e.target.value = ""; if(!S.pview) return; const pid = S.pview.id;
+  for(const f of list){ banner(t("uploading")+" "+f.name); try{ await uploadFile(f, `/api/projects/${pid}/files`); }catch(err){ banner(err.message,true); continue; } }
+  banner(""); openProject(pid);
+};
+function startProjectChat(p){
+  if(S.savedFolder===null) S.savedFolder = S.project;
+  S.projectId = p.id; S.projectName = p.name;
+  if(p.folder){ S.project = p.folder; showProject(); }
+  if(p.gateway && gwInfo(p.gateway)) selectGateway(p.gateway);
+  if(p.model) $("#model").value = p.model;
+  newChat(true);
+}
+function renderHoChip(){
+  const c = $("#hoChip");
+  if(!S.handoffFrom || S.conv){ c.classList.remove("show"); c.innerHTML=""; return; }
+  c.innerHTML = `${esc(fmt(t("hoFrom"),{t:S.handoffFrom.title||"…"}))} <button id="hoX">✕</button>`; c.classList.add("show");
+  $("#hoX").onclick = ()=>{ S.handoffFrom = null; renderHoChip(); };
+}
+function ctxWarnHTML(meta){
+  const n = meta.context_tokens||0; const lim = meta.context_limit || (meta.gateway_type==="anthropic" ? 200000 : 0);
+  const ratio = (S.state.context && S.state.context.warn_ratio) || 0.6;
+  if(!n || !lim || n < lim*ratio) return "";
+  return `<div class="ctxwarn"><span dir="auto">${esc(fmt(t("ctxWarn"),{n:n.toLocaleString(), m:lim.toLocaleString()}))}</span><button class="btn small primary" data-ctxnew>${esc(t("ctxNew"))}</button></div>`;
+}
+document.addEventListener("click", e=>{
+  if(!e.target.closest("[data-ctxnew]") || S.running || !S.conv) return;
+  const conv = S.conv; const title = ($(".conv.active .t")||{}).textContent || "";
+  newChat(true); S.handoffFrom = {id:conv, title}; renderHoChip(); input.focus();
+});
+$("#keysBtn").onclick = ()=>openKeys();
+async function openKeys(msg){
+  openModal(`<h3>${esc(t("keysTitle"))}</h3><div class="mbody" id="kBody"><div class="muted">${esc(t("keysLoading"))}</div></div>
+    <div class="mbtns"><span class="muted" id="kMsg">${esc(msg||"")}</span><span class="spacer"></span><button class="btn small" id="kClose">${esc(t("close"))}</button></div>`);
+  $("#kClose").onclick = closeModal;
+  let st; try{ st = await api("/api/keys?gateway="+encodeURIComponent(S.gateway)); }catch(e){ $("#kBody").textContent = e.message; return; }
+  renderKeys(st, msg);
+}
+function renderKeys(st, msg){
+  const body = $("#kBody"); if(!body) return;
+  if(!st.ok && st.need_credentials){
+    body.innerHTML = `<div>${esc(t("keysNeedCred"))}</div><input id="kEmail" dir="ltr" placeholder="${esc(t("keysEmail"))}"><input id="kPass" type="password" dir="ltr" placeholder="${esc(t("keysPass"))}">
+      <div class="mbtns"><button class="btn primary" id="kCred">${esc(t("keysSave"))}</button><span class="muted">${esc(st.error||"")}</span></div>`;
+    $("#kCred").onclick = async ()=>{ try{ renderKeys(await api("/api/keys",{method:"POST",body:{action:"credentials", gateway:S.gateway, email:$("#kEmail").value, password:$("#kPass").value}})); }catch(e){ banner(e.message,true); } };
+    return;
+  }
+  if(!st.ok){ body.innerHTML = `<div class="err">${esc(st.error||"")}</div>`; return; }
+  const kl = st.keyless_available||[];
+  body.innerHTML = `<div class="kstat">${esc(fmt(t("keysUsable"),{n:st.usable_tool_models}))}</div>
+    ${kl.length ? `<button class="btn primary" id="kKeyless">${esc(fmt(t("keysKeyless"),{n:kl.length}))}</button><div class="muted">${esc(kl.join("، "))}</div>` : `<div class="muted">${esc(t("keysKeylessNone"))}</div>`}
+    <div class="muted" style="margin:8px 0">${esc(t("keysHelp"))}</div>
+    ${(st.providers||[]).filter(p=>!p.keyless).map((p,i)=>`<div class="krow ${p.configured?"done":""}"><div class="kn"><b>${esc(p.name)}</b><small>${esc(fmt(t("keysTools"),{n:p.tool_models}))}</small></div>
+      ${p.url?`<a class="btn small" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(t("keysOpen"))}</a>`:"<span></span>"}
+      <span class="muted">${p.configured?esc(fmt(t("keysHave"),{k:p.keys})):""}</span>
+      <div class="kadd"><input type="password" dir="ltr" data-kin="${esc(p.platform)}" placeholder="${esc(t("keysPaste"))}"><button class="btn small" data-kadd="${esc(p.platform)}">${esc(t("keysAdd"))}</button></div></div>`).join("")}`;
+  if($("#kMsg") && msg) $("#kMsg").textContent = msg;
+  const kb = $("#kKeyless"); if(kb) kb.onclick = async ()=>{ kb.disabled = true; try{ renderKeys(await api("/api/keys",{method:"POST",body:{action:"keyless", gateway:S.gateway}})); }catch(e){ banner(e.message,true); kb.disabled=false; } };
+  body.querySelectorAll("[data-kadd]").forEach(b=>b.onclick = async ()=>{
+    const plat = b.dataset.kadd; const inp = body.querySelector(`[data-kin="${plat}"]`); const key = (inp.value||"").trim(); if(!key) return;
+    b.disabled = true;
+    try{ const r = await api("/api/keys",{method:"POST",body:{action:"add", gateway:S.gateway, platform:plat, key}}); renderKeys(r, fmt(t("keysAdded"),{n:r.usable_tool_models})); }
+    catch(e){ banner(e.message,true); b.disabled = false; }
+  });
+}
+function renderProjChip(){
+  const c = $("#projChip");
+  if(!S.projectId){ c.classList.remove("show"); c.innerHTML = ""; return; }
+  c.innerHTML = `📂 ${esc(t("projIn"))}: <b dir="auto">${esc(S.projectName)}</b>` + (S.conv ? "" : ` <button id="projLeave" title="${esc(t("projLeave"))}">✕</button>`);
+  c.classList.add("show");
+  const b = $("#projLeave"); if(b) b.onclick = ()=>newChat(false);
+}
+
+/* ---------- Claude.ai by hand ---------- */
+async function webSend(){
+  const text = input.value.trim(); if(!text || S.running || S.attachments.some(a=>!a.path)) return;
+  banner(""); if(S.view==="project"){ if(S.pview) startProjectChat(S.pview); else newChat(false); }
+  let r; try{ r = await api("/api/bridge/prepare",{method:"POST",body:{text, conversation_id:S.conv, project:S.project, project_id:S.projectId,
+    attachments:S.attachments.map(a=>a.path)}}); }catch(e){ banner(e.message,true); return; }
+  input.value=""; autosize(); updateSend(); S.attachments=[]; renderChips();
+  if(r.created){ S.conv = r.conversation_id; loadConvs(); renderProjChip(); }
+  S.messages.push({id:r.message_id, role:"user", display:text, sent:r.package, meta:{bridge:true}}); renderThread();
+  openBridge(r);
+}
+function openBridge(r){
+  const head = r ? `<div class="bsteps">${esc(t("webStep1"))}<div class="muted">${esc(fmt(t("webInfo"),{c:r.chars.toLocaleString(), f:r.files.length}))}${r.chars>40000?" · "+esc(t("webBig")):""}</div>
+      <div class="mbtns" style="margin:6px 0 10px"><button class="btn primary" id="bCopy">${esc(t("webCopy"))}</button><button class="btn" id="bDl">${esc(t("webDl"))}</button></div></div>` : "";
+  openModal(`<h3>${esc(t("webTitle"))}</h3><div class="mbody">${head}<div class="bsteps">${esc(t("webStep2"))}</div>
+    <textarea id="bAnswer" dir="auto" placeholder="<<<FILE: ...>>>"></textarea><div id="bPlan"></div></div>
+    <div class="mbtns"><button class="btn" id="bLater">${esc(t("webLater"))}</button><span class="spacer"></span>
+      <button class="btn" id="bPreview">${esc(t("webPreview"))}</button><button class="btn primary" id="bApply" disabled>${esc(t("webApply"))}</button></div>`);
+  $("#bLater").onclick = closeModal;
+  if(r){
+    $("#bCopy").onclick = async ()=>{ try{ await navigator.clipboard.writeText(r.package); }catch(e){ const ta=document.createElement("textarea"); ta.value=r.package; document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+      $("#bCopy").textContent = t("webCopied"); window.open("https://claude.ai/new", "_blank", "noopener"); };
+    $("#bDl").onclick = ()=>{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([r.package],{type:"text/plain;charset=utf-8"})); a.download=r.name; a.click(); };
+  }
+  let plan = null;
+  $("#bPreview").onclick = async ()=>{
+    const answer = $("#bAnswer").value; if(!answer.trim()) return;
+    try{ plan = await api("/api/bridge/preview",{method:"POST",body:{conversation_id:S.conv, answer}}); }catch(e){ banner(e.message,true); return; }
+    const acts = t("webAct");
+    $("#bPlan").innerHTML = (plan.plan.length ? `<div class="bplan">${plan.plan.map((x,i)=>`<label class="${x.action==="rejected"?"rej":""}"><input type="checkbox" data-bp="${i}" ${["create","modify","delete"].includes(x.action)?"checked":"disabled"}>
+        <span>${esc(acts[x.action]||x.action)}</span><code>${esc(x.path)}</code><span class="muted">${x.added!=null?`+${x.added} −${x.removed}`:""} ${esc(x.why||"")}</span></label>`).join("")}</div>` : `<div class="muted">${esc(t("webNoFiles"))}</div>`)
+      + (plan.runs.length ? `<div class="muted" style="margin-top:6px">${esc(t("webRuns"))}</div>${plan.runs.map(c=>`<code dir="ltr">${esc(c)}</code>`).join("<br>")}` : "");
+    $("#bApply").disabled = false;
+  };
+  $("#bApply").onclick = async ()=>{
+    if(!plan) return;
+    const paths = [...document.querySelectorAll("[data-bp]")].filter(b=>b.checked).map(b=>plan.plan[+b.dataset.bp].path);
+    $("#bApply").disabled = true; $("#bApply").textContent = "…";
+    try{ const res = await api("/api/bridge/apply",{method:"POST",body:{conversation_id:S.conv, answer:$("#bAnswer").value, paths,
+          verify:$("#verify").checked, visual:$("#visual").checked}});
+      closeModal(); const txt = (res.meta.parts||[]).filter(p=>p.kind==="text").map(p=>p.text).join("\n\n");
+      S.messages.push({id:res.message_id, role:"assistant", display:txt, meta:res.meta}); renderThread(); loadConvs();
+    }catch(e){ banner(e.message,true); $("#bApply").disabled = false; $("#bApply").textContent = t("webApply"); }
+  };
+  $("#bAnswer").focus();
+}
+function bridgeHTML(m){
+  const b = (m.meta||{}).bridge; if(!b || typeof b!=="object") return "";
+  const acts = t("webAct");
+  const files = (b.files||[]).map(f=>`<div class="bf"><span>${esc(acts[f.action]||f.action)}</span><code>${esc(f.path)}</code></div>`).join("");
+  const runs = (b.runs||[]).map(c=>`<div class="bf"><button class="btn small" data-brun="${esc(c)}">${esc(t("webRun"))}</button><code>${esc(c)}</code></div>`).join("");
+  const undo = b.undone ? `<div class="muted">${esc(t("webUndone"))}</div>` : (b.files||[]).length && m.id ? `<button class="btn small" data-bundo="${m.id}">${esc(t("webUndo"))}</button>` : "";
+  return `<div class="bfiles">${files?`<div class="muted">${esc(t("webWritten"))}</div>${files}`:""}${runs}${undo}</div>`;
+}
+document.addEventListener("click", async e=>{
+  const run = e.target.closest("[data-brun]"), und = e.target.closest("[data-bundo]");
+  if(!run && !und) return;
+  try{
+    if(run){ run.disabled = true; const r = await api("/api/bridge/run",{method:"POST",body:{conversation_id:S.conv, command:run.dataset.brun}});
+      S.messages.push({id:r.message_id, role:"assistant", display:"", meta:r.meta}); renderThread(); }
+    if(und){ await api("/api/bridge/undo",{method:"POST",body:{conversation_id:S.conv, message_id:+und.dataset.bundo}}); openConv(S.conv); }
+  }catch(err){ banner(err.message,true); }
+});
+
+/* ---------- pre-approval ---------- */
+function renderPre(){ const b = $("#preBtn"); b.textContent = S.preapprove ? t("preOn") : t("preOff"); b.classList.toggle("on", S.preapprove); }
+$("#preBtn").onclick = async ()=>{
+  S.preapprove = !S.preapprove; renderPre();
+  if(S.conv){ try{ const r = await api("/api/preapprove",{method:"POST",body:{conversation_id:S.conv, on:S.preapprove}});
+    if(r.answered){ banner(fmt(t("preNow"),{n:r.answered})); if(S.running){ S.running.parts.filter(x=>x.kind==="approval"&&!x.state).forEach(x=>x.state="allow"); drawRun(S.running); } } }
+    catch(e){ banner(e.message,true); } }
+};
+
+/* ---------- modal ---------- */
+function openModal(html){ $("#modal").innerHTML = html; $("#overlay").classList.add("show"); }
+function closeModal(){ $("#overlay").classList.remove("show"); $("#modal").innerHTML = ""; }
+$("#overlay").onclick = e=>{ if(e.target.id==="overlay") closeModal(); };
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && $("#overlay").classList.contains("show")) closeModal(); });
+
+/* ---------- error report ---------- */
+$("#reportBtn").onclick = ()=>openReport(false);
+async function openReport(compact){
+  if(!S.conv){ banner(t("reportNeedConv"), true); return; }
+  let r; try{ r = await api(`/api/conversations/${S.conv}/report`,{method:"POST", body:{compact}}); }catch(e){ banner(e.message,true); return; }
+  const gwOpts = (S.state.gateways||[]).map(g=>`<option value="${esc(g.name)}" ${g.name===S.gateway?"selected":""}>${esc(g.title)}</option>`).join("");
+  openModal(`<h3>🧾 ${esc(t("reportTitle"))}</h3><div class="mbody"><div class="muted" dir="auto">${esc(fmt(t("reportInfo"),{c:r.chars, p:r.path}))}</div>
+    <label class="muted"><input type="checkbox" id="rpShort" style="width:auto" ${compact?"checked":""}> ${esc(t("reportShort"))}</label>
+    <textarea id="rpText" readonly dir="auto">${esc(r.text)}</textarea></div>
+    <div class="mbtns"><button class="btn" id="rpDl">${esc(t("reportDl"))}</button><button class="btn" id="rpCopy">📋 ${esc(t("copy"))}</button>
+      <span class="spacer"></span><span class="muted">${esc(t("reportSendTo"))}</span><select id="rpGw" style="width:auto">${gwOpts}</select>
+      <button class="btn primary" id="rpSend">${esc(t("reportSend"))}</button></div>
+    <div class="mbtns"><button class="btn small ghost" id="rpAnswer">${esc(t("reportOpenAnswer"))}</button><span class="spacer"></span><button class="btn small" id="rpClose">${esc(t("close"))}</button></div>`);
+  $("#rpClose").onclick = closeModal;
+  $("#rpShort").onchange = e=>openReport(e.target.checked);
+  $("#rpDl").onclick = ()=>{ const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([r.text],{type:"text/plain;charset=utf-8"})); a.download = r.name; a.click(); };
+  $("#rpCopy").onclick = async ()=>{ try{ await navigator.clipboard.writeText(r.text); }catch(e){ $("#rpText").select(); document.execCommand("copy"); } $("#rpCopy").textContent = t("copied"); };
+  $("#rpAnswer").onclick = ()=>{ closeModal(); openAnswer(); };
+  $("#rpSend").onclick = ()=>{
+    const gw = $("#rpGw").value; closeModal(); newChat(false); selectGateway(gw);
+    S.attachments = [{name:r.name, path:r.path}]; renderChips();
+    input.value = S.state.report_ask || ""; autosize(); updateSend(); banner(t("reportReady")); $("#model").focus();
+  };
+};
+
+/* ---------- upload an answer ---------- */
+$("#answerBtn").onclick = ()=>openAnswer();
+function openAnswer(){
+  if(S.gateway===WEB && S.conv) return openBridge(null);
+  openModal(`<h3>${esc(t("answerTitle"))}</h3><div class="mbody"><div class="muted" dir="auto">${esc(t("answerHelp"))}</div>
+    <textarea id="anText" dir="auto" placeholder="…"></textarea>
+    <input id="anNote" dir="auto" placeholder="${esc(t("answerNote"))}"></div>
+    <div class="mbtns"><button class="btn" id="anFile">${esc(t("answerFile"))}</button><span class="muted" id="anInfo"></span><span class="spacer"></span>
+      <button class="btn" id="anCancel">${esc(t("cancel"))}</button><button class="btn primary" id="anSend">${esc(t("answerSend"))}</button></div>`);
+  $("#anCancel").onclick = closeModal;
+  $("#anFile").onclick = ()=>$("#answerFile").click();
+  $("#anSend").onclick = ()=>{
+    const answer = $("#anText").value.trim(); if(!answer){ $("#anInfo").textContent = t("answerEmpty"); return; }
+    if(S.running){ return; }
+    const note = $("#anNote").value.trim(); closeModal(); send({expert:{answer}, text:note});
+  };
+  $("#anText").focus();
+}
+$("#answerFile").onchange = async e=>{
+  const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+  const text = await f.text(); const box = $("#anText"); if(box){ box.value = text; $("#anInfo").textContent = "📄 "+f.name; }
+};
+
+/* ---------- rendering ---------- */
+function banner(text, isErr){ const b = $("#banner"); if(!text){ b.classList.remove("show"); return; } b.textContent = brandText(text); b.classList.add("show"); b.style.borderColor = isErr?"var(--err)":""; }
+function SHOWALL(){ return $("#showSent").checked; }
+function userHTML(m){
+  const meta = m.meta||{}; const showSent = SHOWALL() && m.sent && m.sent!==m.display;
+  if(!SHOWALL() && meta.auto) return "";  // automatic continuations are part of "what happens"
+  const badges = [meta.deep?t("deepBadge"):"", meta.memory?t("memBadge"):"", (meta.attachments||[]).length?("📎 "+meta.attachments.length+" "+t("files")):"", meta.expert?t("expertBadge"):"", meta.quick?t("quickBadge"):""].filter(Boolean);
+  return `<div class="msg user"><div class="bubble" dir="auto">${showSent?`<span class="sent-label">${esc(t("sentFull"))}</span>`+esc(m.sent):esc(m.display)}${badges.length?`<div class="badges">${badges.map(b=>`<span class="badge">${esc(b)}</span>`).join("")}</div>`:""}</div></div>`;
+}
+function toolHTML(p){
+  const inp = p.input==null?"":(typeof p.input==="string"?p.input:JSON.stringify(p.input,null,2));
+  const brief = p.input && (p.input.file_path||p.input.path||p.input.command||p.input.pattern||p.input.url||p.input.description||"");
+  const state = p.result==null ? '<span class="spin"></span>' : (p.is_error?"✘":"✔");
+  return `<details class="tool ${p.is_error?"error":""}" data-tool="${esc(p.id||"")}"><summary>${state} 🔧 <b>${esc(p.name||t("tool"))}</b> <span dir="ltr">${esc(String(brief).slice(0,90))}</span></summary><pre>${esc(inp)}</pre>${p.result!=null?`<pre>${esc(p.result)}</pre>`:""}</details>`;
+}
+function approvalHTML(p){
+  const i = p.input||{};
+  const detail = i.command || i.file_path || i.path || i.url || JSON.stringify(i, null, 2);
+  const extra = (i.command && i.description) ? "\n# "+i.description : "";
+  const state = p.state==="allow" ? `<span class="ap-state">${esc(t("apAllowed"))}</span>` : p.state==="deny" ? `<span class="ap-state">${esc(t("apDenied"))}</span>`
+    : `<div class="ap-btns"><button class="btn primary small" data-ap="${esc(p.id)}" data-act="once">${esc(t("apOnce"))}</button>
+       <button class="btn small" data-ap="${esc(p.id)}" data-act="conv">${esc(t("apConv"))}</button>
+       <button class="btn small" data-ap="${esc(p.id)}" data-act="deny">${esc(t("apDeny"))}</button></div>`;
+  return `<div class="approval ${p.state?"done":""}"><div class="ap-h">🔐 ${esc(t("apTitle"))} <b dir="ltr">${esc(p.tool)}</b></div><pre>${esc(String(detail)+extra)}</pre>${state}</div>`;
+}
+function metaHTML(meta, text){
+  const bits = [meta.quick?t("quickBadge"):"", meta.light?t("lightBadge"):"", brandText(meta.gateway_title||meta.gateway), maskModel(meta.model), meta.duration_ms?((meta.duration_ms/1000).toFixed(1)+" "+t("sec")):"", meta.num_turns?(meta.num_turns+" "+t("turns")):"", meta.cost_usd?("$"+Number(meta.cost_usd).toFixed(4)):""].filter(Boolean);
+  return `<div class="meta"><span>${bits.map(esc).join(" · ")}</span><button data-copytext>${esc(t("copy"))}</button><button data-mem>${esc(t("toMemory"))}</button></div>`;
+}
+function imgURL(p){ return "/api/image?path="+encodeURIComponent(p)+"&t="+encodeURIComponent(TOKEN); }
+function visualHTML(v){
+  const state = v.ok===true ? "good" : v.ok===false ? "bad" : "";
+  const head = fmt(t("visTitle"),{n:v.round}) + " — " + (v.ok===true ? t("visOk") : v.ok===false ? t("visBad") : t("visSkip"));
+  const run = (v.command||v.url) ? `<div class="vn" dir="ltr">${esc(t("visRun"))} ${esc(v.command||"")} ${v.url?"→ "+esc(v.url):""}</div>` : "";
+  const probs = (v.problems||[]).map(p=>`<div class="vp" dir="auto">✘ ${esc(p)}</div>`).join("");
+  const note = v.skipped||v.error ? `<div class="vn" dir="auto">${esc(v.skipped||v.error)}</div>` : "";
+  const rv = v.review; let review = "";
+  if(rv){ review = `<div class="vn" dir="auto">${esc(fmt(t("visReview"),{r:rv.reviewer||"—"}))} ${esc(rv.verdict==="ok"?t("visRevOk"):rv.verdict==="problems"?t("visRevBad"):(rv.text||t("visRevSkip")).slice(0,200))}</div>`; }
+  const shots = (v.shots||[]).length ? `<div class="shots">${v.shots.map(s=>`<figure data-shot="${esc(s.path)}" data-cap="${esc(s.name+" · "+(s.url||""))}"><img loading="lazy" src="${imgURL(s.path)}" alt=""><figcaption>${esc(s.name)}${s.tokens?` · ≈${s.tokens} tok`:""}</figcaption></figure>`).join("")}</div>` : "";
+  return `<div class="vis ${state}"><div class="vh">${esc(head)}</div>${run}${probs}${review}${note}${shots}</div>`;
+}
+function openShot(path, cap){
+  openModal(`<h3 dir="ltr" style="font-size:14px">${esc(cap)}</h3><img class="bigshot" src="${imgURL(path)}" alt=""><div class="mbtns"><span class="spacer"></span><button class="btn small" id="shotClose">${esc(t("close"))}</button></div>`);
+  $("#shotClose").onclick = closeModal;
+}
+document.addEventListener("click", e=>{ const f = e.target.closest("[data-shot]"); if(f) openShot(f.dataset.shot, f.dataset.cap); });
+function renderVisualToggle(){
+  const st = (S.state && S.state.visual) || {}; const lab = $("#tVisual").querySelector("span");
+  lab.textContent = t("visual") + (st.available ? "" : " " + t("visualMissing"));
+}
+$("#visual").addEventListener("change", async e=>{
+  const st = (S.state && S.state.visual) || {};
+  if(!e.target.checked || st.available) return;
+  if(!confirm(t("visualInstallAsk"))) return;
+  try{ await api("/api/visual/install",{method:"POST",body:{}}); }catch(err){ banner(err.message,true); return; }
+  banner(t("visualInstalling"));
+  for(let i=0;i<900;i++){
+    await new Promise(r=>setTimeout(r,2000));
+    let v; try{ v = await api("/api/visual"); }catch(err){ continue; }
+    if(!v.installing){
+      S.state.visual = v; renderVisualToggle();
+      banner(v.available ? t("visualReady") : t("visualFailed")+" "+(v.log||"").slice(-300), !v.available); break;
+    }
+    banner(t("visualInstalling")+" "+(v.log||"").split("\n").slice(-1)[0]);
+  }
+});
+function interruptHTML(meta){
+  const d = meta.interrupted; const g = gwInfo(S.gateway);
+  const other = S.gateway && meta.gateway && S.gateway!==meta.gateway && g;
+  const at = d.resume_at ? new Date(d.resume_at*1000).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) : "";
+  return `<div class="intr"><div class="ih">${esc(t("intrTitle"))} ${esc(d.title||d.reason)}</div><div class="ia" dir="auto">${esc(d.advice||"")}${at?" · "+esc(fmt(t("resumeAt"),{t:at})):""}</div>
+    ${d.detail&&d.detail.trim()?`<details><summary>${esc(t("intrDetail"))}</summary><pre>${esc(d.detail)}</pre></details>`:""}
+    <div class="ib"><button class="btn primary small" data-resume>${esc(other?fmt(t("resumeVia"),{g:g.title}):t("resume"))}</button>
+    <button class="btn small" data-report>${esc(t("report"))}</button></div></div>`;
+}
+function assistantHTML(m, isLast){
+  const meta = m.meta||{}; const parts = meta.parts || [{kind:"text", text:m.display}];
+  const all = SHOWALL() || meta.bridge_run;
+  const body = parts.filter(p=>all || p.kind!=="tool").map(p=>p.kind==="tool"?toolHTML(p):(p.error?`<div class="err">${esc(brandText(p.text))}</div>`:md(brandText(p.text)))).join("");
+  if(!all){  // only the answer
+    const intrQ = ((isLast && meta.interrupted && !S.running) ? interruptHTML(meta) : "") + ((isLast && !S.running) ? ctxWarnHTML(meta) : "");
+    if(!body && !intrQ) return "";
+    return `<div class="msg assistant" data-text="${esc(m.display)}"><div class="body">${body}${bridgeHTML(m)}</div>${metaHTML(meta)}${intrQ}</div>`;
+  }
+  const auto = (meta.approvals||[]).filter(a=>a.auto).map(a=>`<div class="notice">${esc(fmt(t("preAuto"),{t:a.tool}))}</div>`).join("");
+  const intr = ((isLast && meta.interrupted && !S.running) ? interruptHTML(meta) : "") + ((isLast && !S.running) ? ctxWarnHTML(meta) : "");
+  const v = meta.verify; let ver = "";
+  if(v){
+    ver = (v.checks||[]).map(c=>`<div class="${c.code===0?"notice":"err"}" dir="auto">${esc(fmt(t("vRound"),{n:c.round, c:c.cmd}) + " — " + (c.code===0 ? t("vPass") : fmt(t("vFail"),{code:c.code})))}${c.code===0?"":`<details><summary>${esc(t("intrDetail"))}</summary><pre class="vout">${esc(c.output||"")}</pre></details>`}</div>`).join("");
+    if(v.status==="self") ver += `<div class="notice">${esc(t("vSelf"))}</div>`;
+    ver += (v.visual||[]).map(visualHTML).join("");
+    const badge = fmt((t("vBadge")||{})[v.status]||"", {n:(v.checks||[]).length});
+    if(badge) ver += `<div class="vbadge ${v.status==="passed"?"ok":v.status==="self"?"":"bad"}">${esc(badge)}${v.cmd?` · <code>${esc(v.cmd)}</code>`:""}</div>`;
+  }
+  return `<div class="msg assistant" data-text="${esc(m.display)}"><div class="body">${auto}${body}${bridgeHTML(m)}${ver}</div>${metaHTML(meta)}${intr}</div>`;
+}
+function renderThread(){
+  if(S.view==="project") return renderProjectView();
+  const th = $("#thread");
+  if(!S.messages.length && !S.running){
+    th.innerHTML = `<div id="welcome"><h1><span class="star">✳</span> ${esc(t("welcome"))}</h1><p>${esc(t("welcomeSub"))}</p></div>`; return;
+  }
+  th.innerHTML = S.messages.map((m,i)=>m.role==="user"?userHTML(m):assistantHTML(m, i===S.messages.length-1)).join("");
+  if(S.running) th.appendChild(S.running.el);
+  wire(th); scrollDown(true);
+}
+function wire(root){
+  root.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>{ navigator.clipboard.writeText(b.parentElement.querySelector("code").innerText); b.textContent=t("copied"); });
+  root.querySelectorAll("[data-copytext]").forEach(b=>b.onclick=()=>{ navigator.clipboard.writeText(b.closest(".msg").dataset.text||""); b.textContent=t("copied"); });
+  root.querySelectorAll("[data-resume]").forEach(b=>b.onclick=()=>send({resume:true}));
+  root.querySelectorAll("[data-report]").forEach(b=>b.onclick=()=>$("#reportBtn").click());
+  root.querySelectorAll("[data-mem]").forEach(b=>b.onclick=async()=>{ const txt = b.closest(".msg").dataset.text||""; if(!txt) return;
+    await api("/api/memory",{method:"POST",body:{text:txt.slice(0,4000), tags:"gui"}}); b.textContent=t("saved"); });
+}
+function scrollDown(force){ const box = $("#messages"); if(force || box.scrollHeight - box.scrollTop - box.clientHeight < 160) box.scrollTop = box.scrollHeight; }
+
+/* ---------- attachments ---------- */
+$("#attachBtn").onclick = ()=>$("#fileInput").click();
+function fmt(s, v){ return s.replace(/\{(\w+)\}/g, (_,k)=>v[k]); }
+async function uploadFile(f, target){
+  const limit = (S.state.max_upload_mb||200)*1024*1024, mb = x=>Math.ceil(x/1048576);
+  if(f.size > limit) throw new Error(fmt(t("tooBig"), {n:f.name, s:mb(f.size), l:mb(limit)}));
+  let res;
+  try{
+    // The file goes as raw bytes (no base64), written to disk by the server as it arrives.
+    res = await fetch((target||"/api/upload")+"?name="+encodeURIComponent(f.name), {method:"POST",
+      headers:{"X-Allinone-Token":TOKEN, "Content-Type":"application/octet-stream"}, body:f});
+  }catch(e){ throw new Error(fmt(t("uploadFail"), {n:f.name})); }
+  let data = null; try{ data = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error((data && data.error) || ("HTTP "+res.status));
+  return data.path;
+}
+$("#fileInput").onchange = async e=>{
+  const list = [...e.target.files]; e.target.value = "";
+  for(const f of list){
+    const item = {name:f.name, path:null}; S.attachments.push(item); renderChips(); updateSend();
+    try{ item.path = await uploadFile(f); }
+    catch(err){ S.attachments.splice(S.attachments.indexOf(item),1); banner(err.message,true); }
+    renderChips(); updateSend();
+  }
+};
+function renderChips(){ $("#chips").innerHTML = S.attachments.map((a,i)=>`<span class="chipfile ${a.path?"":"busy"}">${a.path?"📎":'<span class="spin"></span>'} ${esc(a.name)}${a.path?"":" · "+esc(t("uploading"))} <button data-rm="${i}">✕</button></span>`).join("");
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ S.attachments.splice(+b.dataset.rm,1); renderChips(); updateSend(); }); }
+
+/* ---------- sending ---------- */
+const input = $("#input");
+function autosize(){ input.style.height="auto"; input.style.height=Math.min(input.scrollHeight,260)+"px"; }
+function updateSend(){ const b = $("#send"); if(S.running){ b.disabled=false; b.classList.add("stop"); b.textContent="■"; b.title=t("stopGen"); return; }
+  b.classList.remove("stop"); b.textContent="↑"; b.title=""; b.disabled = !input.value.trim() || S.attachments.some(a=>!a.path); }
+input.oninput = ()=>{ autosize(); updateSend(); };
+input.onkeydown = e=>{ if(e.key==="Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); if(!S.running) send(); } };
+$("#send").onclick = ()=>{ if(S.running) stopRun(); else send(); };
+async function stopRun(){ if(S.running){ try{ await api("/api/stop",{method:"POST",body:{run_id:S.running.runId||"", conversation_id:S.conv||0}}); }catch(e){} } }
+
+async function send(extra){
+  extra = extra || {};
+  if(S.gateway===WEB && !extra.expert && !extra.resume) return webSend();
+  const expert = extra.expert || null, resume = !!extra.resume;
+  const text = (expert||resume) ? (extra.text||"") : input.value.trim();
+  if((!text && !expert && !resume) || S.running || (!resume && S.attachments.some(a=>!a.path))) return;
+  banner("");
+  if(S.view==="project"){ if(S.pview) startProjectChat(S.pview); else newChat(false); }
+  const deep = $("#deep").checked, memory = $("#memory").checked;
+  const shown = text || (expert ? t("expertBadge") : resume ? t("resume") : "");
+  const atts = resume ? [] : S.attachments.map(a=>a.path);
+  const userMsg = {role:"user", display:shown, sent:shown, meta:{deep, memory, expert:!!expert, resume, attachments:atts}};
+  S.messages.push(userMsg);
+  const el = document.createElement("div"); el.className = "msg assistant"; el.innerHTML = `<div class="body"><p class="cursor"></p></div>`;
+  const run = {el, body: el.querySelector(".body"), parts: [], runId:null};
+  S.running = run; if(!expert && !resume){ input.value=""; autosize(); } updateSend(); renderThread();
+  const payload = {text, gateway:S.gateway, model:realModel($("#model").value.trim()), effort:$("#effort").value, permission_mode:$("#perm").value,
+    deep, memory, attachments:atts, project:S.project, conversation_id:S.conv, resume,
+    project_id:S.projectId, preapprove:S.preapprove, verify:$("#verify").checked, visual:$("#visual").checked, account:S.account,
+    failover:$("#failover").checked, quick:$("#quick").checked, light:$("#light").checked, handoff_from:(!S.conv && S.handoffFrom) ? S.handoffFrom.id : undefined};
+  if(expert) payload.expert = expert;
+  if(!resume){ S.attachments = []; renderChips(); }
+  let finalMeta = null;
+  try{
+    const res = await fetch("/api/chat",{method:"POST",headers:{"X-Allinone-Token":TOKEN,"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(!res.ok){ let m="HTTP "+res.status; try{ m=(await res.json()).error||m; }catch(e){} throw new Error(m); }
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
+    for(;;){
+      const {value, done} = await reader.read(); if(done) break;
+      buf += dec.decode(value, {stream:true}); let nl;
+      while((nl = buf.indexOf("\n")) >= 0){ const line = buf.slice(0,nl).trim(); buf = buf.slice(nl+1); if(line){ try{ const ev = JSON.parse(line); handle(ev, run, userMsg); }catch(e){} } }
+    }
+  }catch(e){ run.parts.push({kind:"error", text:e.message}); drawRun(run); }
+  if(run.parts.some(p=>p.kind!=="notice")){  // nothing was saved by the server (connection lost...)
+    const textAll = run.parts.filter(p=>p.kind==="text").map(p=>p.text).join("\n\n");
+    S.messages.push({role:"assistant", display:textAll, meta:{parts: run.parts.filter(p=>p.kind!=="wait"&&p.kind!=="visual").map(p=>p.kind==="error"?{kind:"text",text:p.text,error:true}:p)}});
+  }
+  S.running = null; updateSend(); renderThread(); loadConvs(); refreshState();
+}
+function handle(ev, run, userMsg){
+  switch(ev.type){
+    case "conversation": S.conv = ev.id; S.handoffFrom = null; renderHoChip(); renderProjChip(); loadConvs(); break;
+    case "start": run.runId = ev.run_id; if(!userMsg._started){ userMsg.sent = ev.sent; userMsg._started = true; } refreshState(); if($("#showSent").checked) renderThread(); break;
+    case "notice": run.parts.push({kind:"notice", text:ev.text}); break;
+    case "segment": run.parts.push({kind:"text", text:""}); break;
+    case "delta": { let p = run.parts[run.parts.length-1]; if(!p || p.kind!=="text"){ p={kind:"text",text:""}; run.parts.push(p); } p.text += ev.text; break; }
+    case "text": run.parts.push({kind:"text", text:ev.text}); break;
+    case "thinking": { let p = run.parts[run.parts.length-1]; if(!p || p.kind!=="thinking"){ p={kind:"thinking",text:""}; run.parts.push(p); } p.text += ev.text; break; }
+    case "tool_use": run.parts.push({kind:"tool", id:ev.id, name:ev.name, input:ev.input, result:null}); break;
+    case "tool_result": { const p = run.parts.find(x=>x.kind==="tool" && x.id===ev.id); if(p){ p.result = ev.content; p.is_error = ev.is_error; } break; }
+    case "error": run.parts.push({kind:"error", text:ev.text}); if(ev.need_login){ banner(ev.text, true); } break;
+    case "approval": run.parts.push({kind:"approval", id:ev.id, tool:ev.tool, input:ev.input, state:null}); break;
+    case "saved": {
+      const textAll = (ev.meta.parts||[]).filter(p=>p.kind==="text"&&!p.error).map(p=>p.text).join("\n\n");
+      S.messages.push({role:"assistant", display:textAll, meta:ev.meta}); run.parts = []; renderThread(); return; }
+    case "auto_resume": run.parts.push({kind:"wait", until:ev.until, title:ev.title, attempt:ev.attempt, max:ev.max}); break;
+    case "resume_start": run.parts = []; S.messages.push({role:"user", display:ev.display, sent:ev.sent, meta:{resume:true, auto:true}});
+      if(ev.gateway && gwInfo(ev.gateway)){ S.gateway = ev.gateway; LS.set("gateway", ev.gateway); renderPills(); loadModels(); }
+      renderThread(); return;
+    case "verify": {
+      if(!ev.check){ run.parts.push({kind:"notice", text:t("vSelf")}); break; }
+      const c = ev.check;
+      run.parts.push({kind:ev.check.code===0?"notice":"error", text: fmt(t("vRound"),{n:c.round, c:c.cmd}) + " — " + (c.code===0 ? t("vPass") : fmt(t("vFail"),{code:c.code})) + (c.code===0 ? "" : "\n"+(c.output||"").slice(-600))});
+      break; }
+    case "visual": run.parts.push({kind:"visual", entry:ev.entry}); break;
+    case "visual_review": run.parts.push({kind:"notice", text: fmt(t("visReview"),{r:ev.reviewer||"—"}) + " " + (ev.verdict==="ok"?t("visRevOk"):ev.verdict==="problems"?t("visRevBad")+"\n- "+(ev.problems||[]).join("\n- "):(ev.text||"").slice(0,200))}); break;
+    case "approval_auto": run.parts.push({kind:"notice", text:fmt(t("preAuto"),{t:ev.tool + (ev.input&&ev.input.command?": "+ev.input.command:"")})}); break;
+    case "approval_done": { const p = run.parts.find(x=>x.kind==="approval" && x.id===ev.id); if(p) p.state = ev.behavior; break; }
+    default: return;
+  }
+  drawRun(run);
+}
+function waitHTML(p){
+  const left = Math.max(0, Math.round(p.until - Date.now()/1000));
+  const span = left>=3600 ? `${Math.floor(left/3600)}:${String(Math.floor(left%3600/60)).padStart(2,"0")}:${String(left%60).padStart(2,"0")}` : left>=60 ? `${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}` : left+" "+t("sec");
+  return `<div class="waitbox"><span class="spin"></span><span dir="auto">${esc(fmt(t("waitMsg"),{r:p.title, a:p.attempt, m:p.max, s:span}))}</span><button class="btn small" data-waitcancel>${esc(t("waitCancel"))}</button></div>`;
+}
+setInterval(()=>{ if(S.running && S.running.parts.some(p=>p.kind==="wait")) drawRun(S.running); }, 1000);
+let drawPending = false;
+function drawRun(run){
+  if(drawPending) return; drawPending = true;
+  requestAnimationFrame(()=>{ drawPending = false;
+    const all = SHOWALL();
+    const shown = all ? run.parts : run.parts.filter(p=>["text","approval","wait","error"].includes(p.kind));
+    const tools = run.parts.filter(p=>p.kind==="tool");
+    const lastTool = tools[tools.length-1];
+    const activity = (!all && S.running===run && lastTool) ? `<div class="notice" dir="auto">${esc(t("working"))} ${esc(lastTool.name||"")} <span dir="ltr">${esc(String((lastTool.input&&(lastTool.input.command||lastTool.input.file_path||lastTool.input.url))||"").slice(0,70))}</span> · ${esc(fmt(t("workingN"),{n:tools.length}))}</div>` : "";
+    run.body.innerHTML = activity + shown.map(p=> p.kind==="tool"?toolHTML(p) : p.kind==="approval"?approvalHTML(p) : p.kind==="wait"?waitHTML(p) : p.kind==="visual"?visualHTML(p.entry) : p.kind==="thinking"?`<div class="thinking">${esc(p.text)}</div>`
+      : p.kind==="notice"?`<div class="notice">${esc(brandText(p.text))}</div>` : p.kind==="error"?`<div class="err">${esc(brandText(p.text))}</div>` : md(brandText(p.text||""))).join("")
+      + (S.running===run?'<p class="cursor"></p>':"");
+    wire(run.body);
+    run.body.querySelectorAll("[data-waitcancel]").forEach(b=>b.onclick=()=>stopRun());
+    run.body.querySelectorAll("[data-ap]").forEach(b=>b.onclick=async()=>{
+      const act = b.dataset.act, p = run.parts.find(x=>x.kind==="approval" && x.id===b.dataset.ap); if(!p || p.state) return;
+      p.state = act==="deny" ? "deny" : "allow"; drawRun(run);
+      try{ await api("/api/approval",{method:"POST",body:{id:p.id, allow:act!=="deny", scope:act==="conv"?"conversation":"once"}}); }catch(e){ banner(e.message,true); }
+    });
+    scrollDown(run.parts.some(x=>x.kind==="approval" && !x.state)); });
+}
+
+/* ---------- boot ---------- */
+async function refreshState(){ try{ S.state = await api("/api/state"); renderPills(); }catch(e){ banner(e.message,true); } }
+async function boot(){
+  applyTheme(LS.get("theme", matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));
+  try{ S.state = await api("/api/state"); }catch(e){ document.body.innerHTML = `<p style="padding:30px">${esc(e.message)} — open the address printed in the Allinone window.</p>`; return; }
+  S.lang = LS.get("lang", S.state.lang || "ar");
+  $("#ver").textContent = "v"+S.state.version;
+  const saved = LS.get("gateway", null);
+  S.gateway = (gwInfo(saved) || saved===WEB) ? saved : S.state.default_gateway;
+  S.project = LS.get("project", S.state.project) || S.state.project; showProject();
+  try{ S.projects = (await api("/api/projects")).projects; }catch(e){}
+  S.account = LS.get("account", "default");
+  applyLang(); loadModels(); loadConvs(); loadAccounts(); refreshAuth(); updateSend(); input.focus();
+  setInterval(()=>{ if(!S.running) refreshState(); }, 15000);
+}
+boot();
+</script>
+</body>
+</html>

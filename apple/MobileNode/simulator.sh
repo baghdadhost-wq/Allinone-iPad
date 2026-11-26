@@ -7,13 +7,30 @@ xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configurat
 app=build-sim/Build/Products/Release-iphonesimulator/Allinone.app
 id=app.baghdadhost.allinone
 xcrun simctl install "$device" "$app"
+python3 - <<'PYTHON' &
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+class Fixture(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        if self.path != '/v1/chat/completions' or body['messages'][-1]['content'] != 'ui-bridge-question':
+            self.send_error(400)
+            return
+        self.send_response(200)
+        self.send_header('Content-Type','application/json')
+        self.end_headers()
+        self.wfile.write(b'{"choices":[{"message":{"content":"ui-bridge-ok"}}]}')
+HTTPServer(('127.0.0.1',18761),Fixture).serve_forever()
+PYTHON
+fixture_pid=$!
+trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
 SIMCTL_CHILD_ALLINONE_OFFLINE_TEST=1 xcrun simctl launch --stderr=/tmp/gateway-simulator.log "$device" "$id" --test-mobile-gateways
 data=$(xcrun simctl get_app_container "$device" "$id" data)
 state="$data/Library/Application Support/MobileGateways/state.json"
 for n in {1..120}; do
-  if curl --max-time 4 -fsS http://127.0.0.1:3001/api/ping -o /tmp/free-ping && curl --max-time 5 -fsS http://127.0.0.1:20128/api/health/ping -o /tmp/omni-ping; then
+  if test -f "$data/Documents/original-ui-passed" && curl --max-time 4 -fsS http://127.0.0.1:3001/api/ping -o /tmp/free-ping && curl --max-time 5 -fsS http://127.0.0.1:20128/api/health/ping -o /tmp/omni-ping; then
     python3 -c 'import json; [json.load(open(p)) for p in ("/tmp/free-ping","/tmp/omni-ping")]'
-    echo "FreeLLMAPI and OmniRoute returned JSON from the iOS simulator."
+    echo "Original UI sent and displayed the fixture answer. FreeLLMAPI and OmniRoute returned JSON from the iOS simulator."
     exit 0
   fi
   if test -f "$state"; then cat "$state"; if grep -q '"error:' "$state"; then break; fi; fi

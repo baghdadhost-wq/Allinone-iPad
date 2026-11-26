@@ -10,6 +10,7 @@ struct Notebook: Codable {
     var threads: [String:[Turn]] = [:]
     var checkpoint: Checkpoint?
     var events: [RunEvent]?
+    var uiTitles: [String:String]?
     var activeChat: String?
     var notes = ""
     var tasks: [SavedTask] = []
@@ -41,6 +42,14 @@ struct Notebook: Codable {
         var events = book.events ?? []
         events.append(RunEvent(when: Date(), detail: detail))
         book.events = Array(events.suffix(300))
+        save()
+    }
+    func changeOriginalChat(_ key:String,title:String?) throws {
+        guard !busy, pending == nil,book.threads[key] != nil else { throw LinkError.message("تعذر تغيير المحادثة الآن") }
+        var names=book.uiTitles ?? [:]
+        names[key]=title
+        if title == nil { book.threads.removeValue(forKey:key) }
+        book.uiTitles=names
         save()
     }
     func selectChat(_ id: String) {
@@ -138,7 +147,7 @@ struct Notebook: Codable {
         if let turns = book.threads[thread], turns.count > 100 { book.threads[thread] = Array(turns.suffix(100)) }
         save()
     }
-    func send(_ input: String, thread requestedThread: String? = nil, task: UUID? = nil, assistantMode: AssistantMode = .standard) async throws -> String {
+    func send(_ input: String, thread requestedThread: String? = nil, task: UUID? = nil, assistantMode: AssistantMode = .standard, preferred: Provider? = nil, allowFallback: Bool? = nil) async throws -> String {
         let prompt = input.trimmingCharacters(in:.whitespacesAndNewlines)
         guard !prompt.isEmpty, prompt.utf8.count <= 60000 else { throw LinkError.message("تحقق من طول الطلب") }
         guard !busy else { throw LinkError.message("المضيف مشغول. حاول بعد قليل.") }
@@ -147,7 +156,9 @@ struct Notebook: Codable {
         let history = book.threads[thread] ?? []
         busy = true; message = ""; activity = "بانتظار النموذج…"
         defer { busy = false; activity = ""; partial = "" }
-        let config = providers, selected = mode, switchOnFailure = failover
+        let config = preferred.map { first in [first] + providers.filter { $0.id != first.id && $0.base != first.base } } ?? providers
+        let selected:RouteMode = preferred == nil ? mode : .priority
+        let switchOnFailure = allowFallback ?? failover
         book.checkpoint = Checkpoint(prompt:prompt,thread:thread,task:task,mode:assistantMode)
         track("بدء الطلب")
         let operation = Task { try await CodingAgent.run(prompt:prompt,history:history,notes:self.book.notes,files:self.files,mode:assistantMode,ask: { system,turns in

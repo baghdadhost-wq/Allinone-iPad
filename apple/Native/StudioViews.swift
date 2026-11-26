@@ -138,7 +138,7 @@ private struct ProjectPanel: View {
     }
 }
 
-private struct SettingsPanel: View {
+struct SettingsPanel: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var studio: Studio
     @ObservedObject var host: Host

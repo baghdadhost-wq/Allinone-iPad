@@ -1,0 +1,216 @@
+import SwiftUI
+import WebKit
+import FoundationModels
+
+enum MobilePanel: Int, Identifiable {
+    case options, connection, providers, workspace, gateways, sessions
+    var id: Int { rawValue }
+}
+
+struct OriginalHome: View {
+    @StateObject private var host = Host()
+    @State private var panel: MobilePanel?
+    var body: some View {
+        OriginalPage(host:host,open:{ panel = $0 })
+            .sheet(item:$panel) { item in
+                switch item {
+                case .options:
+                    NavigationStack {
+                        List {
+                            NavigationLink("المزودون وعنوان المضيف") { SettingsPanel(studio:host.studio,host:host) }
+                            NavigationLink("اتصال بمضيف آخر") { Chat() }
+                            NavigationLink("البوابات المحلية") { GatewayPanel(studio:host.studio) }
+                            NavigationLink("ملفات المشروع ومراجعة التعديلات") { Workbench(studio:host.studio,host:host) }
+                        }.navigationTitle("إعدادات الجهاز").toolbar { Button("تم") { panel = nil } }
+                    }
+                case .providers: SettingsPanel(studio:host.studio,host:host)
+                case .connection: Chat()
+                case .gateways: GatewayPanel(studio:host.studio)
+                case .sessions: SessionPanel(studio:host.studio)
+                case .workspace: Workbench(studio:host.studio,host:host)
+                }
+            }
+            .onAppear {
+                host.start()
+                #if targetEnvironment(simulator)
+                if ProcessInfo.processInfo.arguments.contains("--test-mobile-gateways") {
+                    MobileGateways.shared.set("free",enabled:true)
+                    MobileGateways.shared.set("omni",enabled:true)
+                }
+                #endif
+            }
+    }
+}
+
+private struct OriginalPage: UIViewRepresentable {
+    let host: Host
+    let open: (MobilePanel)->Void
+    func makeCoordinator() -> Coordinator { Coordinator(host:host,open:open) }
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        let handler = context.coordinator
+        let page = Bundle.main.url(forResource:"index",withExtension:"html",subdirectory:"OriginalUI")!
+        let adapter = page.deletingLastPathComponent().appendingPathComponent("bridge.js")
+        config.userContentController.addUserScript(WKUserScript(source:(try? String(contentsOf:adapter)) ?? "",injectionTime:.atDocumentStart,forMainFrameOnly:true))
+        config.userContentController.addScriptMessageHandler(handler,contentWorld:.page,name:"mobile")
+        let web = WKWebView(frame:.zero,configuration:config)
+        web.navigationDelegate = handler
+        web.uiDelegate = handler
+        handler.page = page
+        web.loadFileURL(page,allowingReadAccessTo:page.deletingLastPathComponent())
+        return web
+    }
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName:"mobile",contentWorld:.page)
+    }
+    @MainActor final class Coordinator: NSObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, WKUIDelegate {
+        let host: Host
+        let open: (MobilePanel)->Void
+        var page: URL?
+        var studio: Studio { host.studio }
+        init(host:Host,open:@escaping (MobilePanel)->Void) { self.host=host; self.open=open }
+        func webView(_ webView:WKWebView,decidePolicyFor action:WKNavigationAction,decisionHandler:@escaping (WKNavigationActionPolicy)->Void) {
+            decisionHandler(action.request.url?.standardizedFileURL == page?.standardizedFileURL ? .allow : .cancel)
+        }
+        func userContentController(_ userContentController:WKUserContentController,didReceive message:WKScriptMessage,
+                                   replyHandler:@escaping (Any?,String?)->Void) {
+            guard message.frameInfo.isMainFrame, message.webView?.url?.standardizedFileURL == page?.standardizedFileURL,
+                  let payload = message.body as? [String:Any],let path = payload["path"] as? String else {
+                replyHandler(nil,"Invalid page"); return
+            }
+            Task { do { replyHandler(try await route(path,payload["data"] as? [String:Any] ?? [:]),nil) }
+                catch { replyHandler(nil,error.localizedDescription) } }
+        }
+        var appleReady: Bool {
+            if #available(iOS 26, *) { return SystemLanguageModel.default.availability == .available }
+            return false
+        }
+        #if targetEnvironment(simulator)
+        func webView(_ web:WKWebView,didFinish navigation:WKNavigation!) {
+            guard ProcessInfo.processInfo.arguments.contains("--test-mobile-gateways") else { return }
+            let provider = Provider(name:"Simulator fixture",base:"http://127.0.0.1:18761/v1",model:"fixture",style:.openAI,free:true)
+            studio.providers.append(provider)
+            Task {
+                do {
+                    let script = """
+                    for(let n=0;n<100 && !document.querySelector('#gwPills button');n++) await new Promise(r=>setTimeout(r,100));
+                    await refreshState();
+                    await selectGateway(provider);
+                    document.querySelector('#quick').checked=true;
+                    input.value='ui-bridge-question';
+                    await send();
+                    return S.messages.some(m=>m.role==='assistant' && m.display==='ui-bridge-ok');
+                    """
+                    let value = try await web.callAsyncJavaScript(script,arguments:["provider":provider.id.uuidString],in:nil,in:.page)
+                    guard value as? Bool == true else { return }
+                    let marker = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("original-ui-passed")
+                    try Data().write(to:marker)
+                } catch { NSLog("Original UI check: %@",error.localizedDescription) }
+            }
+        }
+        #endif
+        func route(_ raw:String,_ data:[String:Any]) async throws -> Any {
+            let uri = URLComponents(string:raw)
+            let path = uri?.path ?? raw
+            let service = MobileGateways.shared
+            let pairs = [("omniroute","omni","OmniRoute",20128),("freellmapi","free","FreeLLMAPI",3001)]
+            let gateway = data["gateway"] as? String ?? uri?.queryItems?.first(where:{$0.name == "gateway"})?.value ?? ""
+            switch path {
+            case "/api/state":
+                var gateways:[[String:Any]] = pairs.map { id,worker,name,_ in
+                    ["name":id,"type":id,"title":name,"installed":true,"can_start":true,"up":service.state[worker]=="listening","default_model":"auto"]
+                } + [["name":"apple","type":"local","title":"Apple Intelligence","up":appleReady,"installed":true,"can_start":false,"default_model":"on-device"]]
+                for p in studio.providers where p.enabled && p.style != .onDevice && !pairs.contains(where: { p.base == "http://127.0.0.1:\($0.3)/v1" }) {
+                    gateways.append(["name":p.id.uuidString,"title":p.name,"type":"custom","up":true,"installed":true,"can_start":false,"default_model":p.model])
+                }
+                return ["version":"1.10.0","lang":"ar","brand":UserDefaults.standard.string(forKey:"display.brand") ?? "smarter","gateways":gateways,"project":studio.files.root.lastPathComponent,"default_gateway":"omniroute","efforts":[""],"permission_modes":["default"],"default_permission_mode":"default","fast_model":"auto","visual":["available":false]] as [String:Any]
+            case "/mobile/options": open(.options); return [:] as [String:String]
+            case "/api/accounts": return ["accounts":[["id":"default","name":"Default"]]]
+            case "/api/auth": return ["loggedIn":false]
+            case "/api/lang": return ["ok":true]
+            case "/api/models":
+                let base = pairs.first{$0.0==gateway}.map{"http://127.0.0.1:\($0.3)/v1"}
+                return ["models":studio.providers.filter{$0.base==base}.map(\.model)]
+            case "/api/gateway","/api/dashboard","/api/keys":
+                guard let pair = pairs.first(where:{$0.0 == (data["name"] as? String ?? gateway)}) else { open(.providers); return ["notes":[],"url":"about:blank"] as [String:Any] }
+                if path == "/api/gateway" { service.set(pair.1,enabled:data["action"] as? String == "start") }
+                else { if service.desired[pair.1] != true { service.set(pair.1,enabled:true) }; open(.gateways) }
+                return ["ok":true,"url":"about:blank","notes":[],"providers":[],"usable_tool_models":0] as [String:Any]
+            case "/api/project": open(.workspace); return ["path":studio.files.root.lastPathComponent]
+            case "/api/projects": if data["method"] as? String == "POST" { open(.workspace); throw LinkError.message("اختر مجلد المشروع من ملفات الجهاز") }; return ["projects":[]] as [String:Any]
+            case "/api/chat":
+                guard let question = data["text"] as? String, !question.isEmpty else { throw LinkError.message("أدخل السؤال") }
+                let id=(data["conversation_id"] as? Int) ?? Int.random(in:1...2_000_000_000)
+                let chosen:Provider
+                if let pair=pairs.first(where:{$0.0==gateway}) {
+                    let base="http://127.0.0.1:\(pair.3)/v1"
+                    if service.state[pair.1] != "listening" {
+                        service.set(pair.1,enabled:true)
+                        for _ in 0..<90 {
+                            service.refresh()
+                            if service.state[pair.1]=="listening" { break }
+                            if (service.state[pair.1] ?? service.state["install"] ?? "").hasPrefix("error:") { break }
+                            try await Task.sleep(nanoseconds:500_000_000)
+                        }
+                    }
+                    var p = studio.providers.first{$0.base==base && $0.style == .gateway} ?? Provider(name:pair.2,base:base,model:"auto",style:.gateway,free:pair.1=="free")
+                    if let model=data["model"] as? String,!model.isEmpty {p.model=model}
+                    chosen=p
+                } else if gateway=="apple" { chosen = .apple }
+                else if let p = studio.providers.first(where: { $0.enabled && $0.id.uuidString == gateway }) { chosen = p }
+                else { throw LinkError.message("اختر بوابة من القائمة") }
+                let mode:AssistantMode = data["quick"] as? Bool == true ? .quick : (data["light"] as? Bool == true ? .light : .standard)
+                let answer=try await studio.send(question,thread:"ui-\(id)",assistantMode:mode,preferred:chosen,allowFallback:data["failover"] as? Bool ?? false)
+                if studio.pending != nil { open(.workspace) }
+                return ["answer":answer,"id":id] as [String:Any]
+            case "/api/stop": studio.stopRequest(); return ["ok":true]
+            case "/api/shutdown": studio.stopRequest(); host.stop(); for pair in pairs where service.desired[pair.1]==true { service.set(pair.1,enabled:false) }; return ["ok":true]
+            case "/api/memory": studio.setNotes(studio.book.notes+"\n"+(data["text"] as? String ?? "")); return ["ok":true]
+            case "/api/conversations":
+                let search = uri?.queryItems?.first(where:{$0.name=="q"})?.value ?? ""
+                return ["conversations":studio.book.threads.compactMap { key,turns -> [String:Any]? in
+                    guard key.hasPrefix("ui-"),let id=Int(key.dropFirst(3)),let first=turns.first else{return nil}
+                    let title=studio.book.uiTitles?[key] ?? first.content
+                    guard search.isEmpty || title.localizedCaseInsensitiveContains(search) else{return nil}
+                    return ["id":id,"title":String(title.prefix(100))]
+                }.sorted { ($0["id"] as? Int ?? 0) > ($1["id"] as? Int ?? 0) }]
+            default:
+                let parts=path.split(separator:"/")
+                if parts.count>=3,parts[1]=="conversations",let id=Int(parts[2]) {
+                    let key="ui-\(id)"
+                    if data["method"] as? String=="DELETE" { try studio.changeOriginalChat(key,title:nil);return ["ok":true] }
+                    if parts.last=="rename" { try studio.changeOriginalChat(key,title:data["title"] as? String ?? "");return ["ok":true] }
+                    if parts.last=="report" {
+                        let report=(studio.book.events ?? []).map{$0.when.ISO8601Format()+" "+$0.detail}.joined(separator:"\n")
+                        return ["chars":report.count,"text":report,"path":"Allinone","name":"report.txt"] as [String:Any]
+                    }
+                    let messages=(studio.book.threads[key] ?? []).map { ["role":$0.role,"display":$0.content,"sent":$0.content] }
+                    return ["conversation":["id":id,"running":false] as [String:Any],"messages":messages] as [String:Any]
+                }
+                if path.hasPrefix("/api/bridge/") { open(.sessions) }
+                throw LinkError.message("هذه العملية غير متاحة في نسخة الجهاز")
+            }
+        }
+        func presenter(_ web:WKWebView) -> UIViewController? {
+            var vc=web.window?.rootViewController
+            while let next=vc?.presentedViewController {vc=next}
+            return vc
+        }
+        func webView(_ web:WKWebView,runJavaScriptConfirmPanelWithMessage message:String,initiatedByFrame frame:WKFrameInfo,completionHandler:@escaping (Bool)->Void) {
+            guard let vc=presenter(web) else {completionHandler(false);return}
+            let alert=UIAlertController(title:nil,message:message,preferredStyle:.alert)
+            alert.addAction(UIAlertAction(title:"إلغاء",style:.cancel){_ in completionHandler(false)})
+            alert.addAction(UIAlertAction(title:"موافق",style:.default){_ in completionHandler(true)})
+            vc.present(alert,animated:true)
+        }
+        func webView(_ web:WKWebView,runJavaScriptTextInputPanelWithPrompt prompt:String,defaultText:String?,initiatedByFrame frame:WKFrameInfo,completionHandler:@escaping (String?)->Void) {
+            guard let vc=presenter(web) else {completionHandler(nil);return}
+            let alert=UIAlertController(title:prompt,message:nil,preferredStyle:.alert)
+            alert.addTextField{$0.text=defaultText}
+            alert.addAction(UIAlertAction(title:"إلغاء",style:.cancel){_ in completionHandler(nil)})
+            alert.addAction(UIAlertAction(title:"موافق",style:.default){_ in completionHandler(alert.textFields?.first?.text)})
+            vc.present(alert,animated:true)
+        }
+    }
+}
