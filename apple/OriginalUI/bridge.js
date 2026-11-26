@@ -15,6 +15,16 @@
       return new Response(events.map(e=>JSON.stringify(e)+'\n').join(''),{headers:{'Content-Type':'application/x-ndjson'}});
     } catch (e) { return json({error:e.message || String(e)},400); }
   };
+  // The native share sheet handles conversation exports on iOS.
+  document.addEventListener('click',e=>{
+    const button=e.target.closest?.('button[data-act="exp"]');
+    const conversation=button?.closest('.conv[data-id]');
+    if (!conversation) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    native('/api/conversations/'+encodeURIComponent(conversation.dataset.id)+'/export')
+      .catch(error=>window.alert(error.message));
+  },true);
   window.addEventListener('DOMContentLoaded',()=>{
     const version=document.getElementById('ver');
     version.setAttribute('role','button'); version.tabIndex=0;

@@ -3,7 +3,7 @@ import WebKit
 import FoundationModels
 
 enum MobilePanel: Int, Identifiable {
-    case options, connection, providers, workspace, gateways, sessions
+    case options, connection, providers, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
     var id: Int { rawValue }
 }
 
@@ -26,6 +26,9 @@ struct OriginalHome: View {
                 case .providers: SettingsPanel(studio:host.studio,host:host)
                 case .connection: Chat()
                 case .gateways: GatewayPanel(studio:host.studio)
+                case .omniDashboard: GatewayPanel(studio:host.studio,initialPage:URL(string:"http://127.0.0.1:20128"))
+                case .freeDashboard: GatewayPanel(studio:host.studio,initialPage:URL(string:"http://127.0.0.1:3001"))
+                case .freeKeys: GatewayPanel(studio:host.studio,initialPage:URL(string:"http://127.0.0.1:3001/keys"))
                 case .sessions: SessionPanel(studio:host.studio)
                 case .workspace: Workbench(studio:host.studio,host:host)
                 }
@@ -57,6 +60,7 @@ private struct OriginalPage: UIViewRepresentable {
         web.navigationDelegate = handler
         web.uiDelegate = handler
         handler.page = page
+        handler.currentWeb = web
         web.loadFileURL(page,allowingReadAccessTo:page.deletingLastPathComponent())
         return web
     }
@@ -67,6 +71,7 @@ private struct OriginalPage: UIViewRepresentable {
     @MainActor final class Coordinator: NSObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, WKUIDelegate {
         let host: Host
         let open: (MobilePanel)->Void
+        weak var currentWeb: WKWebView?
         var page: URL?
         var studio: Studio { host.studio }
         init(host:Host,open:@escaping (MobilePanel)->Void) { self.host=host; self.open=open }
@@ -135,8 +140,15 @@ private struct OriginalPage: UIViewRepresentable {
             case "/api/gateway","/api/dashboard","/api/keys":
                 guard let pair = pairs.first(where:{$0.0 == (data["name"] as? String ?? gateway)}) else { open(.providers); return ["notes":[],"url":"about:blank"] as [String:Any] }
                 if path == "/api/gateway" { service.set(pair.1,enabled:data["action"] as? String == "start") }
-                else { if service.desired[pair.1] != true { service.set(pair.1,enabled:true) }; open(.gateways) }
-                return ["ok":true,"url":"about:blank","notes":[],"providers":[],"usable_tool_models":0] as [String:Any]
+                else {
+                    if service.desired[pair.1] != true { service.set(pair.1,enabled:true) }
+                    if path == "/api/keys" {
+                        open(.freeKeys)
+                        return ["ok":false,"error":"تدار المفاتيح من لوحة FreeLLMAPI المحلية"] as [String:Any]
+                    }
+                    open(pair.1 == "omni" ? .omniDashboard : .freeDashboard)
+                }
+                return ["ok":true,"url":"about:blank","notes":[]] as [String:Any]
             case "/api/project": open(.workspace); return ["path":studio.files.root.lastPathComponent]
             case "/api/projects": if data["method"] as? String == "POST" { open(.workspace); throw LinkError.message("اختر مجلد المشروع من ملفات الجهاز") }; return ["projects":[]] as [String:Any]
             case "/api/chat":
@@ -181,6 +193,18 @@ private struct OriginalPage: UIViewRepresentable {
                     let key="ui-\(id)"
                     if data["method"] as? String=="DELETE" { try studio.changeOriginalChat(key,title:nil);return ["ok":true] }
                     if parts.last=="rename" { try studio.changeOriginalChat(key,title:data["title"] as? String ?? "");return ["ok":true] }
+                    if parts.last=="export" {
+                        let markdown=(studio.book.threads[key] ?? []).map { "## " + $0.role + "\n\n" + $0.content }.joined(separator:"\n\n")
+                        let name="conversation-\(id).md"
+                        let file=FileManager.default.temporaryDirectory.appendingPathComponent(name)
+                        try Data(markdown.utf8).write(to:file,options:.atomic)
+                        guard let web = currentWeb, let vc=presenter(web) else { throw LinkError.message("تعذرت مشاركة المحادثة") }
+                        let sheet=UIActivityViewController(activityItems:[file],applicationActivities:nil)
+                        sheet.popoverPresentationController?.sourceView=web
+                        sheet.popoverPresentationController?.sourceRect=CGRect(x:web.bounds.midX,y:web.bounds.midY,width:1,height:1)
+                        vc.present(sheet,animated:true)
+                        return ["shared":true]
+                    }
                     if parts.last=="report" {
                         let report=(studio.book.events ?? []).map{$0.when.ISO8601Format()+" "+$0.detail}.joined(separator:"\n")
                         return ["chars":report.count,"text":report,"path":"Allinone","name":"report.txt"] as [String:Any]

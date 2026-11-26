@@ -47,10 +47,19 @@ private struct GatewayDashboard: UIViewRepresentable {
 struct GatewayPanel: View {
     @ObservedObject var service = MobileGateways.shared
     @ObservedObject var studio: Studio
+    var initialPage: URL? = nil
+    @State private var openedInitialPage = false
     @State private var web = WKWebView()
     @State private var resultMessage = ""
     @State private var choosing = false
 
+    private func openWhenReady() {
+        guard !openedInitialPage, let initialPage else { return }
+        let worker = initialPage.port == 3001 ? "free" : "omni"
+        guard service.state[worker] == "listening" else { return }
+        openedInitialPage = true
+        selected = initialPage
+    }
     private func selectFastModel() async {
         guard !choosing else { return }
         choosing = true
@@ -130,7 +139,7 @@ struct GatewayPanel: View {
                         if !service.problem.isEmpty { Text(service.problem) }
                     }
                 }
-            }.navigationTitle("البوابات المحلية").navigationBarTitleDisplayMode(.inline)
+            }.onAppear { openWhenReady() }.onChange(of:service.state) { _ in openWhenReady() }.navigationTitle("البوابات المحلية").navigationBarTitleDisplayMode(.inline)
              .toolbar { Button(selected == nil ? "تم" : "رجوع") { if selected == nil { dismiss() } else { selected = nil } } }
         }
     }
