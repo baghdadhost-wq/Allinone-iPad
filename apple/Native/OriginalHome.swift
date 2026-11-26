@@ -102,7 +102,7 @@ private struct OriginalPage: UIViewRepresentable {
                     await send();
                     return S.messages.some(m=>m.role==='assistant' && m.display==='ui-bridge-ok');
                     """
-                    let value = try await web.callAsyncJavaScript(script,arguments:["provider":provider.id.uuidString],in:nil,in:.page)
+                    let value = try await web.callAsyncJavaScript(script,arguments:["provider":provider.id.uuidString],in:nil,contentWorld:.page)
                     guard value as? Bool == true else { return }
                     let marker = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("original-ui-passed")
                     try Data().write(to:marker)
