@@ -15,6 +15,8 @@ jobs:
           node-version: '24'
       - name: Build original gateway packages for the embedded JS runtime
         run: bash apple/MobileNode/prepare.sh "$RUNNER_TEMP/mobile-assets"
+      - name: Test upstream APIs and dashboards without Internet access
+        run: sudo unshare --net bash apple/MobileNode/linux-smoke.sh "$RUNNER_TEMP/mobile-assets"
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-gateway-resources

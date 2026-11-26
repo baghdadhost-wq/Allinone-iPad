@@ -77,7 +77,9 @@ async function run() {
   await unpack();
   process.chdir(path.join(root,'omni'));
   status.install='ready'; save();
-  const env={...process.env,NODE_ENV:'production',NEXT_TELEMETRY_DISABLED:'1',HOST:'127.0.0.1',HOSTNAME:'127.0.0.1'};
+  const env={...process.env,NODE_ENV:'production',NEXT_TELEMETRY_DISABLED:'1',
+    ARENA_ELO_SYNC_ENABLED:'false',MODELS_DEV_SYNC_ENABLED:'false',PRICING_SYNC_ENABLED:'false',
+    FREE_PROXY_AUTO_SYNC_ENABLED:'false',CATALOG_SYNC_DISABLED:'1',HOST:'127.0.0.1',HOSTNAME:'127.0.0.1'};
   const data=path.join(dir,'accounts');
   fs.mkdirSync(data,{recursive:true});
   const config={

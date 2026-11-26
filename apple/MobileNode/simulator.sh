@@ -7,7 +7,7 @@ xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configurat
 app=build-sim/Build/Products/Release-iphonesimulator/Allinone.app
 id=app.baghdadhost.allinone
 xcrun simctl install "$device" "$app"
-xcrun simctl launch --stderr=/tmp/gateway-simulator.log "$device" "$id" --test-mobile-gateways
+SIMCTL_CHILD_ALLINONE_OFFLINE_TEST=1 xcrun simctl launch --stderr=/tmp/gateway-simulator.log "$device" "$id" --test-mobile-gateways
 data=$(xcrun simctl get_app_container "$device" "$id" data)
 state="$data/Library/Application Support/MobileGateways/state.json"
 for n in {1..120}; do

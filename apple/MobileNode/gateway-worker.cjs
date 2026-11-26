@@ -10,6 +10,19 @@ for(const key of ['spawn','spawnSync','fork','exec','execFile','execSync','execF
   child[key]=()=>{throw Error('Subprocesses are unavailable in the iOS gateway');};
 }
 syncBuiltinESMExports();
+// Keep automated simulator probes offline, including background fetches.
+if (process.env.ALLINONE_OFFLINE_TEST === '1') {
+  const connect=net.Socket.prototype.connect;
+  net.Socket.prototype.connect=function(...args) {
+    const options=net._normalizeArgs(args)[0];
+    if(!options.path && !['127.0.0.1','localhost','::1'].includes(options.host ?? 'localhost')) {
+      const socket=this;
+      queueMicrotask(()=>socket.destroy(Object.assign(Error('Offline test'),{code:'ENETUNREACH'})));
+      return socket;
+    }
+    return connect.apply(this,args);
+  };
+}
 const listen=net.Server.prototype.listen;
 net.Server.prototype.listen=function(...args){
   const opts=typeof args[0]==='object'?args[0]:{port:args[0],host:args[1]};
