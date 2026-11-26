@@ -8,17 +8,29 @@ targets:
     platform: iOS
     sources:
       - path: Host/Host.swift
+      - path: MobileNode/MobileNode.mm
+      - path: MobileNode/supervisor.cjs
+        buildPhase: resources
+      - path: MobileNode/gateway-worker.cjs
+        buildPhase: resources
+      - path: Vendor/gateways.dat
+        buildPhase: resources
       - path: Native
       - path: Allinone.swift
       - path: ../AllinoneClient.swiftpm/Client.swift
       - path: ../AllinoneClient.swiftpm/LocalLink.swift
+    dependencies:
+      - framework: Vendor/NodeMobile.xcframework
+        embed: true
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: "3"
-        MARKETING_VERSION: "0.3"
+        CURRENT_PROJECT_VERSION: "4"
+        SWIFT_OBJC_BRIDGING_HEADER: MobileNode/MobileNode.h
+        CLANG_CXX_LANGUAGE_STANDARD: "c++17"
+        MARKETING_VERSION: "0.4"
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بأجهزتك وتشغيل مضيف Allinone على الشبكة المحلية"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UNIVERSAL_APP"

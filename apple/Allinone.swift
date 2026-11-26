@@ -18,7 +18,15 @@ struct AllinoneHome: View {
             }
         }
         .environment(\.layoutDirection,.rightToLeft)
-        .onAppear { if savedRole == Role.host.rawValue { host.start() } }
+        .onAppear {
+            if savedRole == Role.host.rawValue { host.start() }
+            #if targetEnvironment(simulator)
+            if ProcessInfo.processInfo.arguments.contains("--test-mobile-gateways") {
+                MobileGateways.shared.set("free",enabled:true)
+                MobileGateways.shared.set("omni",enabled:true)
+            }
+            #endif
+        }
         .onChange(of: savedRole) { role in
             if role == Role.host.rawValue { host.start() } else { host.stop() }
         }

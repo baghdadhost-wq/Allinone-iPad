@@ -6,10 +6,36 @@ on:
 permissions:
   contents: read
 jobs:
+  assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build original gateway packages for the embedded JS runtime
+        run: bash apple/MobileNode/prepare.sh "$RUNNER_TEMP/mobile-assets"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-gateway-resources
+          path: ${{ runner.temp }}/mobile-assets/gateways.dat
+          retention-days: 1
   build:
+    needs: assets
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mobile-gateway-resources
+          path: apple/Vendor
+      - name: Install verified NodeMobile framework for device and simulator
+        run: |
+          cd apple/Vendor
+          curl -fLsS --retry 3 https://github.com/fogtape/nodejs-mobile/releases/download/v24.22.1-0/nodejs-mobile-ios-24.22.1-0.zip -o /tmp/node-mobile.zip
+          echo '3fa1b8fb0720768b01c2e0dae3a17e788476e8c1613a1d9a54e206793b45326e  /tmp/node-mobile.zip' | shasum -a 256 -c -
+          unzip -q /tmp/node-mobile.zip -d /tmp/node-mobile
+          cp -R "$(find /tmp/node-mobile -type d -name NodeMobile.xcframework -print -quit)" .
       - name: Generate Apple project
         run: |
           command -v xcodegen || brew install xcodegen
@@ -22,6 +48,8 @@ jobs:
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Allinone.app Payload/
           zip -qry Allinone-unsigned.ipa Payload
+      - name: Boot both upstream gateways inside the iOS app
+        run: bash apple/MobileNode/simulator.sh
       - name: Exercise coding sessions, project writes and routing
         run: |
           swiftc -o /tmp/studio-check AllinoneClient.swiftpm/LocalLink.swift apple/Native/Routing.swift apple/Native/Workspace.swift apple/Native/CodingAgent.swift apple/Native/Exchange.swift apple/Tests/NativeStudioCheck.swift

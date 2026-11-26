@@ -135,10 +135,12 @@ private struct SettingsPanel: View {
     @Environment(\.dismiss) var dismiss
     @ObservedObject var studio: Studio
     @ObservedObject var host: Host
+    @State private var gateways = false
     @State private var editor: Provider?
     var body: some View {
         NavigationStack {
             Form {
+                Button("تشغيل OmniRoute وFreeLLMAPI محليا") { gateways = true }
                 Section("التوجيه داخل الآيباد") {
                     Picker("الطريقة",selection:$studio.mode) {
                         Text("الأولوية ثم الاحتياطي").tag(RouteMode.priority)
@@ -174,6 +176,7 @@ private struct SettingsPanel: View {
                     Button(host.code.isEmpty ? "بدء المضيف" : "إيقاف المضيف") { if host.code.isEmpty { host.start() } else { host.stop() } }
                 }
             }.navigationTitle("الإعدادات").toolbar { EditButton(); Button("تم") { dismiss() } }
+            .sheet(isPresented:$gateways) { GatewayPanel() }
             .sheet(item:$editor) { p in ProviderEditor(studio:studio,provider:p) }
         }
     }
