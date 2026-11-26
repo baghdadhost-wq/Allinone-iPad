@@ -13,10 +13,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - uses: actions/cache@v4
+        id: gateway-cache
+        with:
+          path: ${{ runner.temp }}/mobile-assets/gateways.dat
+          key: mobile-gateways-v1-${{ hashFiles('apple/MobileNode/prepare.sh', 'apple/MobileNode/pack.py') }}
       - name: Build original gateway packages for the embedded JS runtime
+        if: steps.gateway-cache.outputs.cache-hit != 'true'
         run: bash apple/MobileNode/prepare.sh "$RUNNER_TEMP/mobile-assets"
       - name: Test upstream APIs and dashboards without Internet access
-        run: sudo unshare --net bash apple/MobileNode/linux-smoke.sh "$RUNNER_TEMP/mobile-assets"
+        run: sudo env PATH="$PATH" unshare --net bash apple/MobileNode/linux-smoke.sh "$RUNNER_TEMP/mobile-assets"
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-gateway-resources
