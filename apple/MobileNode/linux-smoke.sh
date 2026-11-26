@@ -15,7 +15,7 @@ assets=$(cd "$1" && pwd)
 scripts=$(cd "$(dirname "$0")" && pwd)
 state=$(mktemp -d)
 trap 'if [[ -n ${pid:-} ]]; then kill "$pid" 2>/dev/null || true; fi; rm -rf "$state"' EXIT
-cp "$scripts"/{supervisor,gateway-worker}.cjs "$assets/"
+cp "$scripts"/{supervisor,gateway-worker,mobile-sharp}.cjs "$assets/"
 echo '{"free":true,"omni":true}' > "$state/desired.json"
 node "$assets/supervisor.cjs" "$state" "$assets" > "$state/runtime.log" 2>&1 &
 pid=$!

@@ -45,4 +45,18 @@ http.Server.prototype.emit=function(event,...args){
   return emit.call(this,event,...args);
 };
 const entry=path.join(root,name,name==='omni'?'server.js':'server/dist/index.js');
+// OmniRoute eagerly imports its optional image processor during startup. Load
+// it when an image operation is requested so text routes work on iOS.
+if (name === 'omni') {
+  const Module = require('node:module');
+  const local = Module.createRequire(entry);
+  try { local('sharp'); }
+  catch {
+    const substitute = pathToFileURL(path.join(__dirname,'mobile-sharp.cjs')).href;
+    Module.registerHooks({resolve(specifier,context,next) {
+      if (specifier === 'sharp') return {url:substitute,shortCircuit:true};
+      return next(specifier,context);
+    }});
+  }
+}
 import(pathToFileURL(entry)).catch(error=>{parentPort.postMessage('error: '+error.message);process.exitCode=1;});

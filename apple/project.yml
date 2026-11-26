@@ -11,6 +11,8 @@ targets:
       - path: MobileNode/MobileNode.mm
       - path: MobileNode/supervisor.cjs
         buildPhase: resources
+      - path: MobileNode/mobile-sharp.cjs
+        buildPhase: resources
       - path: MobileNode/gateway-worker.cjs
         buildPhase: resources
       - path: Vendor/gateways.dat
