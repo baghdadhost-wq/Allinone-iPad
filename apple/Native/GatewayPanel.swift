@@ -36,8 +36,8 @@ import WebKit
 
 private struct GatewayDashboard: UIViewRepresentable {
     let url: URL
+    let view: WKWebView
     func makeUIView(context: Context) -> WKWebView {
-        let view = WKWebView()
         view.load(URLRequest(url:url))
         return view
     }
@@ -46,13 +46,60 @@ private struct GatewayDashboard: UIViewRepresentable {
 
 struct GatewayPanel: View {
     @ObservedObject var service = MobileGateways.shared
+    @ObservedObject var studio: Studio
+    @State private var web = WKWebView()
+    @State private var resultMessage = ""
+    @State private var choosing = false
+
+    private func selectFastModel() async {
+        guard !choosing else { return }
+        choosing = true
+        defer { choosing = false }
+        do {
+            let script = """
+            if (location.origin !== 'http://127.0.0.1:3001') throw Error('افتح لوحة FreeLLMAPI المحلية');
+            const token = localStorage.getItem('freellmapi_dashboard_token');
+            async function dashboard(path) {
+              const response = await fetch(path, {mode:'same-origin',redirect:'error',
+                headers:token ? {Authorization:'Bearer '+token} : {}});
+              if (!response.ok) throw Error('افتح لوحة المفاتيح وسجل الدخول (' + response.status + ')');
+              return response.json();
+            }
+            const [catalog, keys] = await Promise.all([dashboard('/api/models'), dashboard('/api/keys/providers')]);
+            const active = new Set(keys.providers.filter(p => p.enabledKeyCount > 0).map(p => p.platform));
+            const models = (Array.isArray(catalog) ? catalog : catalog.models).filter(m => m.enabled !== false &&
+              m.supportsTools && active.has(m.platform) && m.contextWindow >= 32000 && m.modelId);
+            models.sort((a,b) => (a.speedRank || 999) - (b.speedRank || 999) ||
+              b.contextWindow - a.contextWindow || (a.intelligenceRank || 999) - (b.intelligenceRank || 999));
+            return models[0]?.modelId || '';
+            """
+            let value = try await web.callAsyncJavaScript(script,arguments:[:],in:nil,contentWorld:.defaultClient)
+            guard let model = value as? String, !model.isEmpty else {
+                throw LinkError.message("لا يوجد نموذج مفعّل يدعم الأدوات وسياق 32000")
+            }
+            let base = "http://127.0.0.1:3001/v1"
+            var provider = studio.providers.first { $0.base == base && $0.style == .gateway } ??
+                Provider(name:"FreeLLMAPI",base:base,model:model,style:.gateway,free:true)
+            provider.model = model
+            try studio.storeProvider(provider,key:Credentials.key(provider.id))
+            resultMessage = "تم اختيار " + model
+        } catch { resultMessage = error.localizedDescription }
+    }
     @State private var selected: URL?
     @State private var copied = false
     @Environment(\.dismiss) var dismiss
     var body: some View {
         NavigationStack {
             Group {
-                if let selected { GatewayDashboard(url:selected) }
+                if let selected {
+                    VStack {
+                        GatewayDashboard(url:selected,view:web).id(selected)
+                        if selected.port == 3001 {
+                            Button("اختيار أسرع نموذج متاح يدعم الأدوات") { Task { await selectFastModel() } }.disabled(choosing)
+                            if !resultMessage.isEmpty { Text(resultMessage).font(.caption).textSelection(.enabled) }
+                        }
+                    }
+                }
                 else {
                     Form {
                         ForEach(["omni","free"],id:\.self) { id in
@@ -65,6 +112,9 @@ struct GatewayPanel: View {
                                     Text(["installing":"جار تجهيز الملفات لأول تشغيل…","ready":"جار بدء البوابة…","starting":"جار بدء البوابة…","listening":"تعمل محليا","stopped":"متوقفة"][status] ?? status)
                                     Text(endpoint + "/v1").textSelection(.enabled)
                                     Button("فتح لوحة " + name) { selected = URL(string:endpoint) }.disabled(status != "listening")
+                                    if id == "free" && status == "listening" {
+                                        Button("مفاتيح المزودين") { selected = URL(string:endpoint + "/keys") }
+                                    }
                                     if id == "omni" && status == "listening" {
                                         Button(copied ? "تم نسخ كلمة المرور" : "نسخ كلمة مرور اللوحة الأولية") {
                                             if let value = service.password() {

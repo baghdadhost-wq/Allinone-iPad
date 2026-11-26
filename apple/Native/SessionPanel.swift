@@ -9,9 +9,10 @@ struct SessionPanel: View {
     @State private var outgoing = ""
     @State private var incoming = ""
     @State private var errorText = ""
+    @State private var shortReport = false
     @State private var filter = ""
     private var report: String {
-        (studio.book.events ?? []).map { $0.when.ISO8601Format() + "  " + $0.detail }.joined(separator:"\n")
+        (shortReport ? Array((studio.book.events ?? []).suffix(10)) : (studio.book.events ?? [])).map { $0.when.ISO8601Format() + "  " + $0.detail }.joined(separator:"\n")
     }
     var body: some View {
         NavigationStack {
@@ -55,6 +56,7 @@ struct SessionPanel: View {
                     }.disabled(studio.busy || studio.pending != nil)
                 }
                 Section("سجل التنفيذ") {
+                    Toggle("تقرير مختصر لآخر عشر خطوات",isOn:$shortReport)
                     DisclosureGroup("عرض الأوقات والخطوات") { Text(report).font(.caption).textSelection(.enabled) }
                     ShareLink(item:report) { Text("مشاركة التقرير") }
                     Button("تراجع عن آخر تعديل") { do { try studio.undo(); errorText = "تم التراجع" } catch { errorText = error.localizedDescription } }

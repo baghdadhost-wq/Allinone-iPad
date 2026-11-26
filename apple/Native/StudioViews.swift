@@ -184,7 +184,7 @@ private struct SettingsPanel: View {
                     Button(host.code.isEmpty ? "بدء المضيف" : "إيقاف المضيف") { if host.code.isEmpty { host.start() } else { host.stop() } }
                 }
             }.navigationTitle("الإعدادات").toolbar { EditButton(); Button("تم") { dismiss() } }
-            .sheet(isPresented:$gateways) { GatewayPanel() }
+            .sheet(isPresented:$gateways) { GatewayPanel(studio:studio) }
             .sheet(item:$editor) { p in ProviderEditor(studio:studio,provider:p) }
         }
     }
