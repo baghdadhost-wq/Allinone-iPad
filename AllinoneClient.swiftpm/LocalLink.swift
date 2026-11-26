@@ -7,6 +7,9 @@ enum LinkError: Error, LocalizedError {
     var errorDescription: String? { if case .message(let text) = self { return text }; return nil }
 }
 
+enum AssistantMode: String, Codable {
+    case standard, quick, light
+}
 enum LocalLink {
     static let port: UInt16 = 8744
     static let limit = 1024 * 1024
@@ -65,7 +68,7 @@ enum LocalLink {
         }
     }
 
-    static func ask(address: String, code: String, question: String, sessionID: String? = nil) async throws -> String {
+    static func ask(address: String, code: String, question: String, sessionID: String? = nil, mode: AssistantMode = .standard) async throws -> String {
         let parts = address.split(separator: ":", omittingEmptySubsequences: false)
         guard (1...2).contains(parts.count), IPv4Address(String(parts[0])) != nil,
               let port = NWEndpoint.Port(parts.count == 2 ? String(parts[1]) : String(Self.port)) else {
@@ -86,6 +89,7 @@ enum LocalLink {
         DispatchQueue.global().asyncAfter(deadline: .now() + 310, execute: deadline)
         defer { handshakeTimeout.cancel(); deadline.cancel(); connection.cancel() }
         var payload = ["question":question]
+        if mode != .standard { payload["mode"] = mode.rawValue }
         if let sessionID { payload["session"] = sessionID }
         try await write(payload, to: connection)
         let bytes = try await read(connection, limit: limit)

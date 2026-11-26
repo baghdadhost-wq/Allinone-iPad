@@ -17,6 +17,17 @@ func verify(_ value: Bool,_ message: String) throws { if !value { throw Check.fa
         }
         let found = try workspace.search("let n")
         try verify(found.contains("main.swift:1"),"search")
+        let history = [Turn(role:"user",content:"first"),Turn(role:"assistant",content:"second")]
+        let direct = try await CodingAgent.run(prompt:"third",history:history,notes:"private note",files:workspace,mode:.quick,ask:{ system,turns in
+            try verify(!system.contains("private note") && turns.map(\.content) == ["first","second","third"],"quick context")
+            return (#"{"action":"read","path":"main.swift"}"#,"fixture")
+        },activity:{ _ in preconditionFailure("Quick mode invoked a tool") })
+        try verify(direct.proposal == nil && direct.answer.contains("main.swift"),"quick answer is plain text")
+        let checkpoint = Checkpoint(prompt:"third",thread:"host",task:nil,mode:.quick)
+        let restored = try JSONDecoder().decode(Checkpoint.self,from:JSONEncoder().encode(checkpoint))
+        try verify(restored.mode == .quick,"resume mode")
+        let legacy = try JSONDecoder().decode(Checkpoint.self,from:Data(#"{"prompt":"old","thread":"host"}"#.utf8))
+        try verify(legacy.mode == nil,"legacy checkpoint")
         var calls = 0
         let result = try await CodingAgent.run(prompt:"Change n",history:[],notes:"Swift",files:workspace,ask:{system,turns in
             calls += 1

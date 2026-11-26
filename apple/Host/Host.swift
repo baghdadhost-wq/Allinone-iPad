@@ -79,7 +79,7 @@ private func wifiAddress() -> String? {
             let payload = try JSONDecoder().decode([String:String].self, from: data)
             guard let question = payload["question"] else { throw LinkError.message("السؤال فارغ") }
             let thread = payload["session"].flatMap(UUID.init(uuidString:))?.uuidString ?? UUID().uuidString
-            let reply = try await studio.send(question,thread:thread)
+            let reply = try await studio.send(question,thread:thread,assistantMode:payload["mode"].flatMap(AssistantMode.init(rawValue:)) ?? .standard)
             try await LocalLink.write(["answer":reply], to: peer)
         } catch { try? await LocalLink.write(["error":error.localizedDescription], to: peer) }
     }

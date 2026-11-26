@@ -8,6 +8,7 @@ struct Checkpoint: Codable {
     let prompt: String
     let thread: String
     let task: UUID?
+    var mode: AssistantMode? = nil
 }
 enum ManualExchange {
     struct Patch: Decodable { let action: String; let path: String; let text: String; let reason: String? }

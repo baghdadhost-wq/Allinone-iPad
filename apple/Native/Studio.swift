@@ -23,6 +23,10 @@ struct Notebook: Codable {
     @Published private(set) var busy = false
     @Published var activity = ""
     @Published var message = ""
+    @Published var partial = ""
+    @Published var failover = (UserDefaults.standard.object(forKey:"routing.failover") as? Bool ?? true) {
+        didSet { UserDefaults.standard.set(failover,forKey:"routing.failover") }
+    }
     @Published var served = ""
     private let router = NativeRouter()
     private var notebookID = "builtin"
@@ -134,7 +138,7 @@ struct Notebook: Codable {
         if let turns = book.threads[thread], turns.count > 100 { book.threads[thread] = Array(turns.suffix(100)) }
         save()
     }
-    func send(_ input: String, thread requestedThread: String? = nil, task: UUID? = nil) async throws -> String {
+    func send(_ input: String, thread requestedThread: String? = nil, task: UUID? = nil, assistantMode: AssistantMode = .standard) async throws -> String {
         let prompt = input.trimmingCharacters(in:.whitespacesAndNewlines)
         guard !prompt.isEmpty, prompt.utf8.count <= 60000 else { throw LinkError.message("تحقق من طول الطلب") }
         guard !busy else { throw LinkError.message("المضيف مشغول. حاول بعد قليل.") }
@@ -142,12 +146,19 @@ struct Notebook: Codable {
         let thread = requestedThread ?? hostThread
         let history = book.threads[thread] ?? []
         busy = true; message = ""; activity = "بانتظار النموذج…"
-        defer { busy = false; activity = "" }
-        let config = providers, selected = mode
-        book.checkpoint = Checkpoint(prompt:prompt,thread:thread,task:task)
+        defer { busy = false; activity = ""; partial = "" }
+        let config = providers, selected = mode, switchOnFailure = failover
+        book.checkpoint = Checkpoint(prompt:prompt,thread:thread,task:task,mode:assistantMode)
         track("بدء الطلب")
-        let operation = Task { try await CodingAgent.run(prompt:prompt,history:history,notes:self.book.notes,files:self.files,ask: { system,turns in
-            try await self.router.respond(providers:config,mode:selected,system:system,turns:turns)
+        let operation = Task { try await CodingAgent.run(prompt:prompt,history:history,notes:self.book.notes,files:self.files,mode:assistantMode,ask: { system,turns in
+            try await self.router.respond(providers:config,mode:selected,system:system,turns:turns,failover:switchOnFailure) { provider,instructions,messages in
+                if assistantMode == .quick && provider.style != .onDevice {
+                    return try await NativeAPI.stream(provider,system:instructions,turns:messages) { draft in
+                        if thread == self.hostThread { self.partial = draft }
+                    }
+                }
+                return try await NativeAPI.reply(provider,system:instructions,turns:messages)
+            }
         },activity: { self.activity = $0; self.track($0) }) }
         activeRequest = operation
         defer { activeRequest = nil }

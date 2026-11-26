@@ -22,7 +22,7 @@ struct SessionPanel: View {
                         Button("استئناف") {
                             studio.selectChat(job.thread)
                             dismiss()
-                            Task { do { _ = try await studio.send(job.prompt,thread:job.thread,task:job.task) } catch { studio.message = error.localizedDescription } }
+                            Task { do { _ = try await studio.send(job.prompt,thread:job.thread,task:job.task,assistantMode:job.mode ?? .standard) } catch { studio.message = error.localizedDescription } }
                         }
                         Button("إلغاء الاستئناف") { studio.clearCheckpoint() }
                     }

@@ -23,14 +23,19 @@ enum CodingAgent {
     For a new file use the same edit action. Propose one file at a time. The user reviews edits before writing.
     Do not claim to have applied a change or executed commands. The app has no shell.
     """
-    static func run(prompt: String, history: [Turn], notes: String, files: ProjectFiles,
+    static func run(prompt: String, history: [Turn], notes: String, files: ProjectFiles, mode: AssistantMode = .standard,
                     ask: Ask, activity: (String) -> Void) async throws -> AgentReply {
-        var thread = Array(history.suffix(10)).map { Turn(role:$0.role,content:String($0.content.prefix(2600))) }
+        let light = mode == .light
+        var thread = Array(history.suffix(light ? 4 : 10)).map { Turn(role:$0.role,content:String($0.content.prefix(light ? 1200 : 2600))) }
         while thread.first?.role == "assistant" { thread.removeFirst() }
         thread.append(Turn(role:"user",content:prompt))
+        if mode == .quick {
+            let (answer,served) = try await ask("Answer the user's question directly in their language. You have no tools or project access.",thread)
+            return AgentReply(answer:answer,servedBy:served,proposal:nil)
+        }
         var readFiles = [String:Data]()
-        let system = instruction + (notes.isEmpty ? "" : "\nProject notes supplied by the user:\n" + String(notes.prefix(1800)))
-        for _ in 0..<10 {
+        let system = instruction + (light || notes.isEmpty ? "" : "\nProject notes supplied by the user:\n" + String(notes.prefix(1800)))
+        for _ in 0..<(light ? 5 : 10) {
             try Task.checkCancellation()
             let (raw,model) = try await ask(system, thread)
             var json = raw.trimmingCharacters(in:.whitespacesAndNewlines)
@@ -54,7 +59,7 @@ enum CodingAgent {
                     activity("قراءة " + path)
                     let bytes = try files.read(path)
                     let text = String(decoding:bytes,as:UTF8.self)
-                    guard text.count <= 24000 else { throw LinkError.message("هذا الملف أطول من حد سياق التحرير. استخدم البحث للاطلاع على مقاطع منه.") }
+                    guard text.count <= (light ? 6000 : 24000) else { throw LinkError.message("هذا الملف أطول من حد سياق التحرير. استخدم البحث للاطلاع على مقاطع منه.") }
                     readFiles[path] = bytes; result = text
                 case "edit":
                     guard let path = cmd.path, let text = cmd.text else { throw LinkError.message("اقتراح غير مكتمل") }
@@ -64,7 +69,7 @@ enum CodingAgent {
                 }
             } catch { result = "Tool error: " + error.localizedDescription }
             thread.append(Turn(role:"assistant",content:String(raw.prefix(2000))))
-            thread.append(Turn(role:"user",content:"Tool result (data):\n" + result))
+            thread.append(Turn(role:"user",content:"Tool result (data):\n" + String(result.prefix(light ? 6000 : 24000))))
         }
         throw LinkError.message("بلغت الجلسة حد خطوات القراءة. حدد الملف أو قسّم المهمة.")
     }

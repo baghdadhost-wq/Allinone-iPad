@@ -69,6 +69,40 @@ private final class KeepOrigin: NSObject, URLSessionTaskDelegate {
 }
 
 enum NativeAPI {
+    @MainActor static func stream(_ provider: Provider, system: String, turns: [Turn], update: (String) -> Void) async throws -> String {
+        update("")
+        var req = try request(provider,key:Credentials.key(provider.id),system:system,turns:turns)
+        var body = try JSONSerialization.jsonObject(with:req.httpBody!) as! [String:Any]
+        body["stream"] = true
+        req.httpBody = try JSONSerialization.data(withJSONObject:body)
+        let session = URLSession(configuration:.ephemeral,delegate:KeepOrigin(),delegateQueue:nil)
+        defer { session.invalidateAndCancel() }
+        let (bytes,response) = try await session.bytes(for:req)
+        guard let http = response as? HTTPURLResponse else { throw LinkError.message("تعذر الاتصال بالمزود") }
+        try check(http)
+        var answer = ""
+        if response.mimeType != "text/event-stream" {
+            var data = Data()
+            for try await byte in bytes { data.append(byte); if data.count > 4194304 { throw LinkError.message("تجاوز الجواب الحجم المسموح") } }
+            return try decode(data)
+        }
+        var finished = false
+        for try await line in bytes.lines where line.hasPrefix("data:") {
+            try Task.checkCancellation()
+            let value = String(line.dropFirst(5)).trimmingCharacters(in:.whitespaces)
+            if value == "[DONE]" { finished = true; break }
+            guard let event = try JSONSerialization.jsonObject(with:Data(value.utf8)) as? [String:Any] else { continue }
+            if event["error"] != nil { throw LinkError.message("أبلغ المزود عن خطأ أثناء إرسال الجواب") }
+            if event["type"] as? String == "message_stop" { finished = true; break }
+            let choices = event["choices"] as? [[String:Any]]
+            let delta = event["delta"] as? [String:Any]
+            let chunk = delta?["text"] as? String ?? (choices?.first?["delta"] as? [String:Any])?["content"] as? String
+            if let chunk { answer += chunk; update(answer) }
+        }
+        guard finished, !answer.isEmpty else { throw LinkError.message("توقف بث الجواب قبل اكتماله") }
+        return answer
+    }
+
     static func endpoint(_ provider: Provider) throws -> URL {
         let s = provider.base.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let c = URLComponents(string: s), let host = c.host, let u = c.url, !host.isEmpty,
@@ -118,12 +152,25 @@ enum NativeAPI {
         defer { session.finishTasksAndInvalidate() }
         let (data, response) = try await session.data(for:request)
         guard let http = response as? HTTPURLResponse else { throw LinkError.message("تعذرت قراءة استجابة المزود") }
+        try check(http)
+        return try decode(data)
+    }
+
+    static func check(_ http: HTTPURLResponse) throws {
         guard (200..<300).contains(http.statusCode) else {
-            let retry = TimeInterval(http.value(forHTTPHeaderField:"Retry-After") ?? "") ?? 30
+            let header = http.value(forHTTPHeaderField:"Retry-After") ?? ""
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier:"en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT:0)
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+            let retry = TimeInterval(header) ?? formatter.date(from:header)?.timeIntervalSinceNow ?? 30
             throw UpstreamFailure(reason:"HTTP \(http.statusCode)", delay:http.statusCode == 429 ? max(1,min(3600,retry)) : 0)
         }
+    }
+
+    static func decode(_ data: Data) throws -> String {
         guard let payload = try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw LinkError.message("استجابة غير صالحة") }
-        if (provider.style == .anthropic || provider.style == .gateway), let blocks = payload["content"] as? [[String:Any]] {
+        if let blocks = payload["content"] as? [[String:Any]] {
             let s = blocks.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined(separator:"\n")
             if !s.isEmpty { return s }
         }
@@ -138,11 +185,13 @@ enum NativeAPI {
     private var lastFree: UUID?
     typealias Generate = (Provider,String,[Turn]) async throws -> String
     func respond(providers: [Provider], mode: RouteMode, system: String, turns: [Turn],
-                 generate: Generate = NativeAPI.reply) async throws -> (String,String) {
-        var candidates = providers.filter { $0.enabled && (mode != .freePool || $0.free) && (cooldown[$0.id] ?? .distantPast) <= Date() }
+                 failover: Bool = true, generate: Generate = NativeAPI.reply) async throws -> (String,String) {
+        var candidates = providers.filter { $0.enabled && (mode != .freePool || $0.free)  }
         if mode == .freePool, let lastFree, let i = candidates.firstIndex(where: { $0.id == lastFree }) {
             candidates = Array(candidates.dropFirst(i+1)) + Array(candidates.prefix(i+1))
         }
+        if !failover { candidates = Array(candidates.prefix(1)) }
+        candidates.removeAll { (cooldown[$0.id] ?? .distantPast) > Date() }
         guard !candidates.isEmpty else { throw LinkError.message("لا يوجد مزود جاهز لهذا المسار. راجع المزودين وحدود الاستخدام.") }
         var failures = [String]()
         for p in candidates {

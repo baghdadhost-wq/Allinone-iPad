@@ -36,6 +36,7 @@ struct Reply: Decodable { let answer: String?; let error: String? }
 
 struct Chat: View {
     @State private var native = true
+    @State private var mode = AssistantMode.standard
     @State private var sessionID = UUID().uuidString
     @State private var address = ""
     @State private var fingerprint = ""
@@ -57,6 +58,11 @@ struct Chat: View {
                     if !native { TextField("بصمة SHA-256 الظاهرة على المضيف", text: $fingerprint) }
                 }.textInputAutocapitalization(.never).autocorrectionDisabled()
                 Section("سؤالك") {
+                    if native { Picker("طريقة الإجابة",selection:$mode) {
+                        Text("برمجة").tag(AssistantMode.standard)
+                        Text("سؤال سريع").tag(AssistantMode.quick)
+                        Text("برمجة خفيفة").tag(AssistantMode.light)
+                    }.pickerStyle(.segmented) }
                     if native { Button("محادثة جديدة") { sessionID = UUID().uuidString; question = ""; output = "" }.disabled(waiting) }
                     TextField("اكتب سؤالك", text: $question, axis: .vertical).lineLimit(3...10)
                     Button(waiting ? "بانتظار الجواب…" : "إرسال") { Task { await send() } }
@@ -74,7 +80,7 @@ struct Chat: View {
             output = ""
             defer { waiting = false }
             do {
-                output = try await LocalLink.ask(address: raw, code: token.trimmingCharacters(in: .whitespacesAndNewlines), question: question, sessionID: sessionID)
+                output = try await LocalLink.ask(address: raw, code: token.trimmingCharacters(in: .whitespacesAndNewlines), question: question, sessionID: sessionID, mode: mode)
             } catch { output = error.localizedDescription }
             return
         }

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct Workbench: View {
     @ObservedObject var studio: Studio
     @ObservedObject var host: Host
+    @State private var assistantMode = AssistantMode.standard
     @State private var prompt = ""
     @State private var picking = false
     @State private var settings = false
@@ -33,13 +34,19 @@ struct Workbench: View {
                     if !studio.activity.isEmpty { HStack { ProgressView(); Text(studio.activity); Button("إيقاف") { studio.stopRequest() } }.font(.footnote).padding(5) }
                     if !studio.served.isEmpty { Text(studio.served).font(.caption).foregroundStyle(.secondary) }
                     if !studio.message.isEmpty { Text(studio.message).font(.footnote).foregroundStyle(.red).padding(.horizontal) }
+                    if !studio.partial.isEmpty { ScrollView { Text(studio.partial).textSelection(.enabled) }.frame(maxHeight:100) }
+                    Picker("طريقة الإجابة",selection:$assistantMode) {
+                        Text("برمجة").tag(AssistantMode.standard)
+                        Text("سؤال سريع").tag(AssistantMode.quick)
+                        Text("برمجة خفيفة").tag(AssistantMode.light)
+                    }.pickerStyle(.segmented).padding(.horizontal).disabled(studio.busy)
                     Divider()
                     HStack(alignment:.bottom) {
                         TextField("اسأل عن المشروع أو اطلب تعديلا…",text:$prompt,axis:.vertical).lineLimit(1...6)
                         Button("إرسال") {
                             let value = prompt
                             Task {
-                                do { _ = try await studio.send(value); if prompt == value { prompt = "" } }
+                                do { _ = try await studio.send(value,assistantMode:assistantMode); if prompt == value { prompt = "" } }
                                 catch { studio.message = error.localizedDescription }
                             }
                         }.buttonStyle(.borderedProminent).disabled(studio.busy || prompt.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
@@ -142,6 +149,7 @@ private struct SettingsPanel: View {
             Form {
                 Button("تشغيل OmniRoute وFreeLLMAPI محليا") { gateways = true }
                 Section("التوجيه داخل الآيباد") {
+                    Toggle("الانتقال تلقائيا إلى مزود احتياطي",isOn:$studio.failover)
                     Picker("الطريقة",selection:$studio.mode) {
                         Text("الأولوية ثم الاحتياطي").tag(RouteMode.priority)
                         Text("تدوير المزودين المجانيين").tag(RouteMode.freePool)
@@ -208,6 +216,12 @@ private struct ProviderEditor: View {
                     }
                     if provider.style != .onDevice {
                         TextField("Base URL",text:$provider.base).keyboardType(.URL).onChange(of:provider.base) { _ in key = "" }
+                        if provider.name == "OmniRoute" {
+                            Menu("اختيار توجيه OmniRoute") {
+                                Button("تلقائي للبرمجة") { provider.model = "auto/coding" }
+                                Button("تلقائي سريع") { provider.model = "auto/fast" }
+                            }
+                        }
                         TextField("معرّف النموذج من حسابك",text:$provider.model)
                         SecureField("API key",text:$key)
                     }
