@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import FoundationModels
 
 enum MobilePanel: Int, Identifiable {
-    case projectFolder, options, connection, providers, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
+    case projectFolder, externalFolder, options, connection, providers, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
     var id: Int { rawValue }
 }
 
@@ -12,11 +12,30 @@ struct OriginalHome: View {
     @StateObject private var host = Host()
     @State private var panel: MobilePanel?
     @State private var refreshCount = 0
+    @State private var openFilesAfterDismiss = false
+    @State private var folderError: String?
     var body: some View {
         OriginalPage(host:host,refreshCount:refreshCount,open:{ panel = $0 })
-            .sheet(item:$panel,onDismiss:{ refreshCount += 1 }) { item in
+            .sheet(item:$panel,onDismiss:{
+                if openFilesAfterDismiss {
+                    openFilesAfterDismiss = false
+                    panel = .externalFolder
+                } else { refreshCount += 1 }
+            }) { item in
                 switch item {
-                case .projectFolder: ProjectFolderPanel(studio:host.studio)
+                case .projectFolder:
+                    ProjectFolderPanel(studio:host.studio) {
+                        openFilesAfterDismiss = true
+                        panel = nil
+                    }
+                case .externalFolder:
+                    ExternalProjectPicker(start:host.studio.files.root) { url in
+                        if let url {
+                            do { try host.studio.open(url) }
+                            catch { folderError = error.localizedDescription }
+                        }
+                        panel = nil
+                    }
                 case .options:
                     NavigationStack {
                         List {
@@ -36,6 +55,9 @@ struct OriginalHome: View {
                 case .workspace: Workbench(studio:host.studio,host:host)
                 }
             }
+            .alert("تعذر اختيار المجلد",isPresented:Binding(get:{ folderError != nil && panel == nil },set:{ if !$0 { folderError = nil } })) {
+                Button("موافق") { folderError = nil }
+            } message: { Text(folderError ?? "") }
             .onAppear {
                 host.start()
                 #if targetEnvironment(simulator)

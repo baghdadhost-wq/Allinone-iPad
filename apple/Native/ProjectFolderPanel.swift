@@ -4,17 +4,17 @@ import UniformTypeIdentifiers
 /// Local projects can be selected even when the Files provider is unavailable.
 struct ProjectFolderPanel: View {
     @ObservedObject var studio: Studio
+    let browseExternal: () -> Void
     @Environment(\.dismiss) private var dismiss
     private let documents: URL
     @State private var current: URL
     @State private var folders: [URL] = []
     @State private var naming = false
     @State private var name = ""
-    @State private var browsing = false
-    @State private var imported: URL?
     @State private var problem = ""
 
-    init(studio: Studio) {
+    init(studio: Studio,browseExternal:@escaping () -> Void) {
+        self.browseExternal = browseExternal
         self.studio = studio
         let root = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].resolvingSymlinksInPath().standardizedFileURL
         documents = root
@@ -40,7 +40,7 @@ struct ProjectFolderPanel: View {
                     Button("إنشاء مجلد جديد") { name = ""; naming = true }
                         .accessibilityIdentifier("createProjectFolder")
                 }
-                Button("اختيار موقع آخر من الملفات") { browsing = true }
+                Button("اختيار موقع آخر من الملفات",action:browseExternal)
                 if !problem.isEmpty { Text(problem).foregroundStyle(.red) }
             }
             .navigationTitle("مجلد المشروع")
@@ -53,17 +53,7 @@ struct ProjectFolderPanel: View {
                 Button("إنشاء") { create() }
                 Button("إلغاء",role:.cancel) {}
             }
-            .sheet(isPresented:$browsing,onDismiss:{
-                if let url = imported {
-                    imported = nil
-                    select(url)
-                }
-            }) {
-                ExternalProjectPicker(start:studio.files.root) { url in
-                    imported = url
-                    browsing = false
-                }
-            }
+
         }
     }
 
@@ -98,7 +88,7 @@ struct ProjectFolderPanel: View {
     }
 }
 
-private struct ExternalProjectPicker: UIViewControllerRepresentable {
+struct ExternalProjectPicker: UIViewControllerRepresentable {
     let start: URL
     let finish: (URL?) -> Void
 

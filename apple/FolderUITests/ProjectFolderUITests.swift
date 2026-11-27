@@ -35,8 +35,15 @@ final class ProjectFolderUITests: XCTestCase {
         XCTAssertTrue(open.waitForExistence(timeout:30),app.debugDescription)
         XCTAssertTrue(open.isEnabled,app.debugDescription)
         open.tap()
-        XCTAssertTrue(chosen.waitForExistence(timeout:20),app.debugDescription)
-        XCTAssertFalse(app.buttons["confirmProjectFolder"].exists)
-        XCTAssertFalse(open.exists)
+        // Files can ask the user to grant access on first selection.
+        let permission = app.alerts.firstMatch
+        if permission.waitForExistence(timeout:3) {
+            let allow = permission.buttons.matching(NSPredicate(format:"label IN %@",["Allow","Open","السماح","فتح"])).firstMatch
+            if allow.exists { allow.tap() }
+        }
+        let closed = XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:open)
+        XCTAssertEqual(XCTWaiter.wait(for:[closed],timeout:20),.completed,app.debugDescription)
+        XCTAssertFalse(app.buttons["confirmProjectFolder"].exists,app.debugDescription)
+        XCTAssertTrue(chosen.isHittable,app.debugDescription)
     }
 }
