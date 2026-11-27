@@ -1,5 +1,8 @@
 import SwiftUI
 import UniformTypeIdentifiers
+#if canImport(Translation)
+import Translation
+#endif
 
 struct Workbench: View {
     @ObservedObject var studio: Studio
@@ -144,10 +147,20 @@ struct SettingsPanel: View {
     @ObservedObject var host: Host
     @State private var gateways = false
     @State private var editor: Provider?
+    @State private var translateArabic = AppleModel.translateArabic
     var body: some View {
         NavigationStack {
             Form {
                 Button("تشغيل OmniRoute وFreeLLMAPI محليا") { gateways = true }
+                Section("نموذج Apple على الجهاز") {
+                    Text(AppleModel.unavailableReason() ?? "جاهز على هذا الجهاز").font(.footnote)
+                    Toggle("ترجمة العربية تلقائيا",isOn:$translateArabic)
+                        .onChange(of:translateArabic) { AppleModel.translateArabic = $0 }
+                    Text("نموذج Apple لا يفهم العربية. عند التفعيل تُترجم رسالتك إلى الإنجليزية على الجهاز، ثم يُترجم الجواب إلى العربية، ويبقى الكود دون ترجمة.").font(.footnote)
+                    #if canImport(Translation)
+                    if #available(iOS 26.4, *) { ArabicPackButton() }
+                    #endif
+                }
                 Section("التوجيه داخل الآيباد") {
                     Toggle("الانتقال تلقائيا إلى مزود احتياطي",isOn:$studio.failover)
                     Picker("الطريقة",selection:$studio.mode) {
@@ -241,3 +254,27 @@ private struct ProviderEditor: View {
         provider.name = name; provider.base = url; provider.style = style; provider.model = ""; provider.free = false; key = ""
     }
 }
+
+#if canImport(Translation)
+/// Downloads the Arabic and English packs that on-device translation needs.
+@available(iOS 26.4, *)
+private struct ArabicPackButton: View {
+    @State private var configuration: TranslationSession.Configuration?
+    @State private var status = ""
+    var body: some View {
+        Button("تنزيل لغة الترجمة العربية") {
+            configuration = TranslationSession.Configuration(source:Locale.Language(identifier:"ar"),target:Locale.Language(identifier:"en"))
+        }
+        .translationTask(configuration) { session in
+            do {
+                try await session.prepareTranslation()
+                await MainActor.run { status = "الترجمة العربية جاهزة" }
+            } catch {
+                let text = error.localizedDescription
+                await MainActor.run { status = text }
+            }
+        }
+        if !status.isEmpty { Text(status).font(.caption) }
+    }
+}
+#endif

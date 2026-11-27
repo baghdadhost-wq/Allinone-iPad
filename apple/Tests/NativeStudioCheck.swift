@@ -83,6 +83,33 @@ func verify(_ value: Bool,_ message: String) throws { if !value { throw Check.fa
             try verify(r.url!.path == (p.style == .openAI ? "/v1/chat/completions" : "/v1/messages"),"route")
             try verify(r.value(forHTTPHeaderField:p.style == .openAI ? "Authorization":"x-api-key") != nil,"auth")
         }
-        print("PASS: list/search/read, review before write, create, stale write and path checks, ordered failover, free rotation, provider formats")
+        // Apple on-device helpers
+        try verify(AppleBudget.isMostlyArabic("عدّل الملف main.swift من فضلك"),"arabic request")
+        try verify(!AppleBudget.isMostlyArabic("let title = \"مرحبا\"\nfunc render() { print(title) }\nlet count = 1"),"code with Arabic string")
+        let parts = AppleBudget.segments("اشرح\n```swift\nlet a = 1\n```\nشكرا")
+        try verify(parts.count == 3 && parts[1].code && parts[1].text.contains("let a = 1"),"code stays untranslated")
+        let long = (0..<40).map { Turn(role:$0 % 2 == 0 ? "user" : "assistant",content:String(repeating:"word ",count:120)) }
+        let plan = AppleBudget.compact(long + [Turn(role:"user",content:"latest request")],budget:600)
+        try verify(plan.turns.contains { $0.content == "latest request" } && !plan.dropped.isEmpty,"keeps request, drops old turns")
+        try verify(plan.turns.reduce(0) { $0 + AppleBudget.tokens($1.content) } <= 600,"fits budget")
+        try verify(AppleBudget.message(for:"exceededContextWindowSize(Context(debugDescription: x))") != nil,"context error message")
+        try verify(AppleBudget.message(for:"GenerationError.unsupportedLanguageOrLocale") != nil,"language error message")
+        let big = (1...400).map { "line \($0)" }.joined(separator:"\n")
+        let window = TextWindow.slice(big,line:200,maxChars:500)
+        try verify(!window.complete && window.text.contains("line 200") && !window.text.contains("line 150\n"),"partial read window")
+        try Data(big.utf8).write(to:root.appendingPathComponent("big.txt"))
+        var bigCalls = 0
+        let bigEdit = try await CodingAgent.run(prompt:"edit big",history:[],notes:"",files:workspace,readLimit:500,ask:{ _,turns in
+            bigCalls += 1
+            if bigCalls == 1 { return (#"{"action":"read","path":"big.txt"}"#,"fixture") }
+            if bigCalls == 2 {
+                try verify(turns.last!.content.contains("Partial view"),"partial view shown")
+                return (#"{"action":"edit","path":"big.txt","text":"lost","reason":"x"}"#,"fixture")
+            }
+            try verify(turns.last!.content.contains("Tool error"),"edit after partial read rejected")
+            return (#"{"action":"answer","text":"done"}"#,"fixture")
+        },activity:{_ in})
+        try verify(bigEdit.proposal == nil,"no edit from partial view")
+        print("PASS: list/search/read, review before write, create, stale write and path checks, ordered failover, free rotation, provider formats, Apple budget and partial reads")
     }
 }
