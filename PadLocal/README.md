@@ -6,3 +6,5 @@ Qwen is the smallest option. Available process RAM is sampled live; model files,
 The default engine runs without CPU JIT. An experimental, opt-in arm64 CPU JIT specializes two float multipliers for repetition penalties. It does not compile the model. It checks debugger attachment, requests writable then executable memory from iPadOS, and reports denied permissions. No special entitlement or debugger enabler is shipped, and a side-loaded signature alone does not enable this feature.
 
 On macOS with Xcode, CMake and XcodeGen, run bash build-engine.sh, xcodegen generate, then open PadLocal.xcodeproj. Select your development team for device installation. The branch workflow builds an unsigned device IPA. Model licenses and cards are provided by the respective maintainers on Hugging Face.
+
+The Xcode target requests Apple's increased-memory-limit capability. Whether a signed installation receives additional RAM depends on its profile, OS and hardware. The AOT/Metal path works without debugger attachment.

@@ -16,6 +16,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.padlocal
+        CODE_SIGN_ENTITLEMENTS: Memory.entitlements
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: PadLocal
         INFOPLIST_KEY_UILaunchScreen_Generation: YES

@@ -1,6 +1,9 @@
 #import "Engine.h"
 #import <llama/llama.h>
+#import <TargetConditionals.h>
+#if !TARGET_OS_OSX
 #import <os/proc.h>
+#endif
 #import <sys/sysctl.h>
 #import <sys/mman.h>
 #import <libkern/OSCacheControl.h>
@@ -15,7 +18,13 @@
 static std::atomic<bool> stopped(false);
 void PLStop(void){stopped.store(true);}
 void PLResetStop(void){stopped.store(false);}
-uint64_t PLAvailable(void){return os_proc_available_memory();}
+uint64_t PLAvailable(void){
+#if TARGET_OS_OSX
+    return 0; // Command-line verification does not use the iPad memory gauge.
+#else
+    return os_proc_available_memory();
+#endif
+}
 BOOL PLDebugAttached(void){
     int mib[]={CTL_KERN,KERN_PROC,KERN_PROC_PID,getpid()};
     struct kinfo_proc info={}; size_t n=sizeof(info);
@@ -57,6 +66,9 @@ NSString *PLGenerate(NSString *path,NSArray<NSDictionary<NSString *,NSString *> 
     auto fail=[&](NSString *why)->NSString*{*error=why;return @"";};
     static dispatch_once_t once;dispatch_once(&once,^{llama_backend_init();});
     auto params=llama_model_default_params();params.n_gpu_layers=99;params.use_mmap=true;
+#if TARGET_OS_OSX
+    params.n_gpu_layers=0; // Hosted macOS runners may have no Metal device.
+#endif
     params.progress_callback=[](float,void*){return !stopped.load();};
     std::unique_ptr<llama_model,decltype(&llama_model_free)> model(llama_model_load_from_file(path.fileSystemRepresentation,params),llama_model_free);
     if(!model)return fail(stopped?@"تم الإيقاف":@"تعذر تحميل GGUF. تحقق من الذاكرة وتوافق الملف.");
@@ -71,10 +83,23 @@ NSString *PLGenerate(NSString *path,NSArray<NSDictionary<NSString *,NSString *> 
     for(NSDictionary *m in turns) msgs.push_back({[m[@"role"] UTF8String],[m[@"content"] UTF8String]});
     std::vector<llama_token> tokens;
     for(;;){
-        int sz=llama_chat_apply_template(tmpl,msgs.data(),msgs.size(),true,nullptr,0);
-        if(sz<=0 || sz>4000000)return fail(@"قالب المحادثة غير مدعوم أو النص طويل جدا.");
-        std::vector<char> prompt(sz+1);
-        llama_chat_apply_template(tmpl,msgs.data(),msgs.size(),true,prompt.data(),prompt.size());
+        std::string prompt;
+        if(strstr(tmpl,"<|turn>") != nullptr){
+            for(const auto &m:msgs){
+                prompt+="<|turn>";
+                prompt+=strcmp(m.role,"assistant")==0 ? "model" : m.role;
+                prompt+="\n"; prompt+=m.content; prompt+="<turn|>\n";
+            }
+            prompt+="<|turn>model\n";
+        } else {
+            int bytesNeeded=llama_chat_apply_template(tmpl,msgs.data(),msgs.size(),true,nullptr,0);
+            if(bytesNeeded<=0 || bytesNeeded>4000000)return fail(@"قالب المحادثة غير مدعوم أو النص طويل جدا.");
+            std::vector<char> buffer(bytesNeeded+1);
+            int written=llama_chat_apply_template(tmpl,msgs.data(),msgs.size(),true,buffer.data(),buffer.size());
+            if(written!=bytesNeeded)return fail(@"تعذر تجهيز قالب المحادثة.");
+            prompt.assign(buffer.data(),written);
+        }
+        const auto sz=(int32_t)prompt.size();
         int nt=-llama_tokenize(v,prompt.data(),sz,nullptr,0,true,true);
         if(nt<=0)return fail(@"تعذر ترميز النص.");
         if(nt<=1280){
