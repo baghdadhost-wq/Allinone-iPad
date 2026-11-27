@@ -78,3 +78,6 @@ img { max-width: 100%; }
   #welcome { margin-top: 0; }
   #banner { margin-top: 2px; max-height: 15vh; overflow: auto; }
 }
+
+/* Only the embedded gateways provide local dashboards. */
+#topbar:has(#gwPills .pill.active:not([data-gw="omniroute"]):not([data-gw="freellmapi"])) #gwAction { display: none !important; }

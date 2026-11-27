@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import FoundationModels
 
 enum MobilePanel: Int, Identifiable {
-    case projectFolder, externalFolder, options, connection, providers, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
+    case projectFolder, externalFolder, options, connection, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
     var id: Int { rawValue }
 }
 
@@ -45,7 +45,7 @@ struct OriginalHome: View {
                             NavigationLink("ملفات المشروع ومراجعة التعديلات") { Workbench(studio:host.studio,host:host) }
                         }.navigationTitle("إعدادات الجهاز").toolbar { Button("تم") { panel = nil } }
                     }
-                case .providers: SettingsPanel(studio:host.studio,host:host)
+
                 case .connection: Chat()
                 case .gateways: GatewayPanel(studio:host.studio)
                 case .omniDashboard: GatewayPanel(studio:host.studio,initialPage:URL(string:"http://127.0.0.1:20128"))
@@ -179,7 +179,7 @@ private struct OriginalPage: UIViewRepresentable {
                 let base = pairs.first{$0.0==gateway}.map{"http://127.0.0.1:\($0.3)/v1"}
                 return ["models":studio.providers.filter{$0.base==base}.map(\.model)]
             case "/api/gateway","/api/dashboard","/api/keys":
-                guard let pair = pairs.first(where:{$0.0 == (data["name"] as? String ?? gateway)}) else { open(.providers); return ["notes":[],"url":"about:blank"] as [String:Any] }
+                guard let pair = pairs.first(where:{$0.0 == (data["name"] as? String ?? gateway)}) else { throw LinkError.message("هذا المزود لا يملك لوحة بوابة محلية") }
                 if path == "/api/gateway" { service.set(pair.1,enabled:data["action"] as? String == "start") }
                 else {
                     if service.desired[pair.1] != true { service.set(pair.1,enabled:true) }

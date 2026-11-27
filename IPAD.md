@@ -1,5 +1,9 @@
 # Allinone على iPad وiPhone
 
+تستخدم الشاشة الرئيسية ملف `controller/web/index.html` من Allinone v1.10.0 عند التحديث `8b8942df7eb2baac9bcfacffa52f793c9889e638`. في نسخة الآيباد يوجد الملف في `apple/OriginalUI/index.html`. يفتح زر لوحة التحكم لوحة OmniRoute أو FreeLLMAPI عند اختيار البوابة. إعدادات الجهاز والاقتران متاحة من رقم الإصدار.
+
+[سجل تعديلات نسخة الآيباد](https://github.com/baghdadhost-wq/Allinone-iPad/commits/main/) · [سجل البناء والاختبارات](https://github.com/baghdadhost-wq/Allinone-iPad/actions)
+
 ينتج بناء Apple تطبيقا واحدا مكتوبا بـSwift وSwiftUI. بعد توقيع Allinone-unsigned.ipa ثبّت الحزمة نفسها على الجهازين. يبدأ الآيباد في وضع المضيف. يعمل مساعد البرمجة والتوجيه على الآيباد ويستدعي النموذج الذي تختاره. لا يحتاج تشغيل هذا المسار إلى Python أو Node أو UTM أو خادم بوابة منفصل.
 
 ## إعداد النموذج
