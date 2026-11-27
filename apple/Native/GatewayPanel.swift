@@ -8,23 +8,44 @@ import WebKit
     @Published private(set) var state = [String:String]()
     @Published var problem = ""
     private var timer: Timer?
+    private init() {
+        // Restore the last choice so gateways that were on keep running after a relaunch.
+        if let data = try? Data(contentsOf:dir.appendingPathComponent("desired.json")),
+           let saved = try? JSONDecoder().decode([String:Bool].self,from:data) {
+            desired = saved
+            if saved.values.contains(true) {
+                do { try startSupervisor() } catch { problem = error.localizedDescription }
+            }
+        }
+    }
+    private func startSupervisor() throws {
+        guard timer == nil else { return }
+        let bundle = Bundle.main.bundleURL
+        guard FileManager.default.fileExists(atPath:bundle.appendingPathComponent("gateways.dat").path) else { throw LinkError.message("ملفات البوابتين مفقودة") }
+        try? FileManager.default.removeItem(at:dir.appendingPathComponent("state.json"))
+        EmbeddedNode.start(bundle.appendingPathComponent("supervisor.cjs").path,state:dir.path,bundle:bundle.path)
+        timer = Timer.scheduledTimer(withTimeInterval:1,repeats:true) { [weak self] _ in Task { @MainActor in self?.refresh() } }
+    }
     func set(_ name: String, enabled: Bool) {
         do {
-            let fm = FileManager.default
-            try fm.createDirectory(at:dir,withIntermediateDirectories:true)
+            try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
             var next = desired
             next[name] = enabled
             try JSONEncoder().encode(next).write(to:dir.appendingPathComponent("desired.json"),options:.atomic)
-            let bundle = Bundle.main.bundleURL
-            guard fm.fileExists(atPath:bundle.appendingPathComponent("gateways.dat").path) else { throw LinkError.message("ملفات البوابتين مفقودة") }
-            if timer == nil {
-                try? fm.removeItem(at:dir.appendingPathComponent("state.json"))
-                EmbeddedNode.start(bundle.appendingPathComponent("supervisor.cjs").path,state:dir.path,bundle:bundle.path)
-                timer = Timer.scheduledTimer(withTimeInterval:1,repeats:true) { [weak self] _ in Task { @MainActor in self?.refresh() } }
-            }
+            try startSupervisor()
             desired = next
             problem = ""
         } catch { problem = error.localizedDescription }
+    }
+    /// Ask the supervisor to restart a stopped or crashed gateway now ("install" retries unpacking).
+    func restart(_ name: String) {
+        if name != "install", desired[name] != true { set(name,enabled:true); return }
+        try? Data().write(to:dir.appendingPathComponent("restart-" + name))
+        if name != "install" { state[name] = "starting" } else { state["install"] = "installing" }
+    }
+    func failure(_ name: String) -> String? {
+        for key in [name,"install"] { if let value = state[key], value.hasPrefix("error:") { return value } }
+        return nil
     }
     func refresh() {
         guard let data = try? Data(contentsOf:dir.appendingPathComponent("state.json")),
@@ -119,6 +140,9 @@ struct GatewayPanel: View {
                                 if service.desired[id] == true {
                                     let status = service.state[id] ?? service.state["install"] ?? "installing"
                                     Text(["installing":"جار تجهيز الملفات لأول تشغيل…","ready":"جار بدء البوابة…","starting":"جار بدء البوابة…","listening":"تعمل محليا","stopped":"متوقفة"][status] ?? status)
+                                    if status.hasPrefix("error:") {
+                                        Button("إعادة تشغيل " + name) { service.restart(service.state["install"]?.hasPrefix("error:") == true ? "install" : id) }
+                                    }
                                     Text(endpoint + "/v1").textSelection(.enabled)
                                     Button("فتح لوحة " + name) { selected = URL(string:endpoint) }.disabled(status != "listening")
                                     if id == "free" && status == "listening" {

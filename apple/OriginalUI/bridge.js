@@ -3,13 +3,18 @@
   const native = (path, data = {}) => window.webkit.messageHandlers.mobile.postMessage({path,data});
   const json = (value, status = 200) => new Response(JSON.stringify(value), {status,headers:{'Content-Type':'application/json'}});
   const originalFetch = window.fetch.bind(window);
+  let lastNotice = '';
   window.fetch = async (url, options = {}) => {
     if (typeof url !== 'string' || !url.startsWith('/api/')) return originalFetch(url,options);
     try {
       if (options.body && typeof options.body !== 'string') throw Error('افتح ملفات المشروع من إعدادات الجهاز');
       const body = options.body ? JSON.parse(options.body) : {};
       const data = await native(url,{...body,method:options.method || 'GET'});
-      if (url === '/api/state') syncProject(data);
+      if (url === '/api/state') {
+        syncProject(data);
+        if (data.notice && data.notice !== lastNotice) banner(data.notice, true);
+        lastNotice = data.notice || '';
+      }
       if (url !== '/api/chat') return json(data);
       const part = {kind:'text',text:data.answer};
       const events = [{type:'conversation',id:data.id},{type:'text',text:data.answer},{type:'saved',meta:{parts:[part]}}];

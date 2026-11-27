@@ -164,7 +164,9 @@ enum NativeAPI {
             formatter.timeZone = TimeZone(secondsFromGMT:0)
             formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
             let retry = TimeInterval(header) ?? formatter.date(from:header)?.timeIntervalSinceNow ?? 30
-            throw UpstreamFailure(reason:"HTTP \(http.statusCode)", delay:http.statusCode == 429 ? max(1,min(3600,retry)) : 0)
+            let hint = [401,403].contains(http.statusCode) ? ": المفتاح مرفوض أو غير موجود. أدخل مفتاح البوابة أو المزود من «المزودون»" :
+                http.statusCode == 404 ? ": تحقق من عنوان API واسم النموذج" : ""
+            throw UpstreamFailure(reason:"HTTP \(http.statusCode)" + hint, delay:http.statusCode == 429 ? max(1,min(3600,retry)) : 0)
         }
     }
 
