@@ -65,7 +65,7 @@ public:
 NSString *PLGenerate(NSString *path,NSArray<NSDictionary<NSString *,NSString *> *> *turns,BOOL jit,void (^update)(NSString *),NSString *__autoreleasing *error){
     auto fail=[&](NSString *why)->NSString*{*error=why;return @"";};
     static dispatch_once_t once;dispatch_once(&once,^{llama_backend_init();});
-    auto params=llama_model_default_params();params.n_gpu_layers=99;params.use_mmap=true;
+    auto params=llama_model_default_params();params.n_gpu_layers=99;params.load_mode=LLAMA_LOAD_MODE_MMAP;
 #if TARGET_OS_OSX
     params.n_gpu_layers=0; // Hosted macOS runners may have no Metal device.
 #endif

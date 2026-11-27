@@ -4,6 +4,9 @@ on:
     branches: [ipad-local-models]
     paths: ['PadLocal/**', '.github/workflows/padlocal.yml']
   workflow_dispatch:
+concurrency:
+  group: padlocal-device-build
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -29,13 +32,18 @@ jobs:
         working-directory: PadLocal
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: engine
         with:
           path: PadLocal/Vendor
           key: padlocal-prism-ios-43f31f4-v1
       - if: steps.engine.outputs.cache-hit != 'true'
         run: bash build-engine.sh
+      - uses: actions/cache/save@v4
+        if: steps.engine.outputs.cache-hit != 'true'
+        with:
+          path: PadLocal/Vendor
+          key: padlocal-prism-ios-43f31f4-v1
       - run: |
           command -v xcodegen || brew install xcodegen
           xcodegen generate
