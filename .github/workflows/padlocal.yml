@@ -1,0 +1,36 @@
+name: Build standalone PadLocal
+on:
+  push:
+    branches: [ipad-local-models]
+    paths: ['PadLocal/**', '.github/workflows/padlocal.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ipad:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: PadLocal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: engine
+        with:
+          path: PadLocal/Vendor
+          key: padlocal-prism-ios-43f31f4-v1
+      - if: steps.engine.outputs.cache-hit != 'true'
+        run: bash build-engine.sh
+      - run: |
+          command -v xcodegen || brew install xcodegen
+          xcodegen generate
+          xcodebuild -quiet -project PadLocal.xcodeproj -scheme PadLocal -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/PadLocal.app Payload/
+          test -f Payload/PadLocal.app/Frameworks/llama.framework/llama
+          test -z "$(find Payload -iname '*.gguf' -print -quit)"
+          zip -qry PadLocal-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PadLocal-unsigned
+          path: PadLocal/PadLocal-unsigned.ipa
