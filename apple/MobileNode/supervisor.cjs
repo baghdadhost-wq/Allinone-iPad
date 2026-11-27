@@ -71,10 +71,27 @@ function secret(name) {
   if(!fs.existsSync(file)) fs.writeFileSync(file,crypto.randomBytes(32).toString('hex'),{mode:0o600,flag:'wx'});
   return fs.readFileSync(file,'utf8');
 }
+// A request file lets the app retry immediately instead of waiting for the backoff.
+function takeRequest(name) {
+  const file=path.join(dir,'restart-'+name);
+  if(!fs.existsSync(file)) return false;
+  fs.rmSync(file,{force:true});
+  return true;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function install() {
+  for(;;) {
+    status.install='installing'; save();
+    try { await unpack(); return; }
+    catch(error) {
+      status.install='error: '+error.message; save();
+      while(!takeRequest('install')) await sleep(1000);
+    }
+  }
+}
 async function run() {
   fs.mkdirSync(dir,{recursive:true});
-  status.install='installing'; save();
-  await unpack();
+  await install();
   process.chdir(path.join(root,'omni'));
   status.install='ready'; save();
   const env={...process.env,NODE_ENV:'production',NEXT_TELEMETRY_DISABLED:'1',
@@ -86,26 +103,52 @@ async function run() {
     omni:{DATA_DIR:path.join(data,'omni'),JWT_SECRET:secret('jwt'),INITIAL_PASSWORD:secret('omni-password'),STORAGE_ENCRYPTION_KEY:secret('omni-key')},
     free:{FREEAPI_DB_PATH:path.join(data,'free','gateway.db'),ENCRYPTION_KEY:secret('free-key'),CLIENT_DIST:path.join(root,'free/client/dist'),ALLOWED_HOSTS:'127.0.0.1'}
   };
-  let last='';
+  const failures={}, retryAt={};
+  function readDesired() {
+    try { return JSON.parse(fs.readFileSync(path.join(dir,'desired.json'),'utf8')); }
+    catch { return {}; }
+  }
+  function launch(name,port) {
+    status[name]='starting'; save();
+    const worker=new Worker(path.join(bundle,'gateway-worker.cjs'),{workerData:{name,root,port},env:{...env,...config[name],PORT:String(port)}});
+    workers.set(name,worker);
+    const failed=reason=>{
+      if(workers.get(name)!==worker) return;
+      workers.delete(name);
+      failures[name]=(failures[name]||0)+1;
+      // Retry crashed gateways automatically: 2s, 4s, 8s ... up to one minute.
+      retryAt[name]=Date.now()+Math.min(60000,1000*2**failures[name]);
+      status[name]='error: '+reason; save();
+      worker.terminate().catch(()=>{});
+    };
+    worker.on('message',message=>{
+      if(workers.get(name)!==worker) return;
+      if(typeof message==='string' && message.startsWith('error:')) return failed(message.slice(6).trim());
+      if(message==='listening') failures[name]=0;
+      status[name]=message; save();
+    });
+    worker.on('error',err=>failed(err.message));
+    worker.on('exit',code=>failed('worker exited '+code));
+  }
   async function reconcile() {
-    const raw=fs.readFileSync(path.join(dir,'desired.json'),'utf8');
-    if(last===raw) return;
-    const desired=JSON.parse(raw); last=raw;
+    const desired=readDesired();
     for(const [name,port] of Object.entries(ports)) {
       const current=workers.get(name);
+      const forced=takeRequest(name);
       if(!desired[name]) {
         if(current){workers.delete(name); await current.terminate();}
-        status[name]='stopped'; save(); continue;
+        failures[name]=0; delete retryAt[name];
+        if(status[name]!=='stopped'){status[name]='stopped'; save();}
+        continue;
       }
-      if(current) continue;
-      status[name]='starting'; save();
-      const worker=new Worker(path.join(bundle,'gateway-worker.cjs'),{workerData:{name,root,port},env:{...env,...config[name],PORT:String(port)}});
-      workers.set(name,worker);
-      worker.on('message',message=>{if(workers.get(name)===worker){status[name]=message;save();}});
-      worker.on('error',err=>{if(workers.get(name)===worker){status[name]='error: '+err.message;save();}});
-      worker.on('exit',code=>{if(workers.get(name)===worker){workers.delete(name);if(!status[name].startsWith('error:')) status[name]='error: worker exited '+code;save();}});
+      if(current && !forced) continue;
+      if(current){workers.delete(name); await current.terminate();}
+      if(!forced && retryAt[name] && Date.now()<retryAt[name]) continue;
+      if(forced) failures[name]=0;
+      delete retryAt[name];
+      launch(name,port);
     }
   }
-  for(;;){await reconcile();await new Promise(r=>setTimeout(r,500));}
+  for(;;){await reconcile();await sleep(500);}
 }
 run().catch(error=>{status.install='error: '+error.message;save();});

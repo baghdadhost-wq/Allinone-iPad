@@ -87,11 +87,19 @@ struct Notebook: Codable {
             try manager.createDirectory(at:storage,withIntermediateDirectories:true)
             if let data = defaults.data(forKey:"project.bookmark"), let id = defaults.string(forKey:"project.identifier") {
                 var stale = false
-                if let url = try? URL(resolvingBookmarkData:data,options:[],relativeTo:nil,bookmarkDataIsStale:&stale),
-                   Self.isInsideDocuments(url) || url.startAccessingSecurityScopedResource() {
+                let url = try? URL(resolvingBookmarkData:data,options:[],relativeTo:nil,bookmarkDataIsStale:&stale)
+                if let url, Self.isInsideDocuments(url) || url.startAccessingSecurityScopedResource() {
                     scopedURL = Self.isInsideDocuments(url) ? nil : url
                     files = ProjectFiles(root:url); notebookID = id
-                    if stale { defaults.set(try url.bookmarkData(options:.minimalBookmark,includingResourceValuesForKeys:nil,relativeTo:nil),forKey:"project.bookmark") }
+                    if stale, let fresh = try? url.bookmarkData(options:.minimalBookmark,includingResourceValuesForKeys:nil,relativeTo:nil) {
+                        defaults.set(fresh,forKey:"project.bookmark")
+                    }
+                } else {
+                    // Tell the user instead of silently switching back to the built-in folder.
+                    defaults.removeObject(forKey:"project.bookmark")
+                    defaults.removeObject(forKey:"project.identifier")
+                    let name = url?.lastPathComponent ?? "المحفوظ"
+                    message = "تعذر فتح مجلد المشروع «" + name + "». تم الرجوع إلى Workspace. اختر المجلد من جديد من زر المشروع."
                 }
             }
             try load()
@@ -141,6 +149,11 @@ struct Notebook: Codable {
     }
     func saveProviders() throws {
         UserDefaults.standard.set(try JSONEncoder().encode(providers),forKey:"routing.providers")
+    }
+    func addProvider(_ p: Provider) throws {
+        guard !providers.contains(where: { $0.id == p.id }) else { return }
+        providers.append(p)
+        try saveProviders()
     }
     func storeProvider(_ p: Provider, key: String) throws {
         if p.style != .onDevice { _ = try NativeAPI.endpoint(p) }

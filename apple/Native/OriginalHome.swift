@@ -156,6 +156,34 @@ private struct OriginalPage: UIViewRepresentable {
             }
         }
         #endif
+        /// Waits for the first-run unpack (can take minutes) and restarts a crashed gateway once.
+        func waitForGateway(_ worker:String,name:String) async throws {
+            let service = MobileGateways.shared
+            if service.desired[worker] != true { service.set(worker,enabled:true) }
+            else if service.failure(worker) != nil { service.restart(service.state["install"]?.hasPrefix("error:") == true ? "install" : worker) }
+            var restarted = false
+            let started = Date()
+            while true {
+                try Task.checkCancellation()
+                service.refresh()
+                if service.state[worker] == "listening" { return }
+                let installing = (service.state["install"] ?? "installing") == "installing"
+                studio.activity = installing ? "تجهيز " + name + " لأول تشغيل… قد يستغرق بضع دقائق" : "بدء " + name + "…"
+                if let failure = service.failure(worker) {
+                    guard !restarted else {
+                        studio.activity = ""
+                        throw LinkError.message(name + " لم تعمل: " + failure.dropFirst(6).trimmingCharacters(in:.whitespaces) + ". افتح البوابات المحلية لإعادة تشغيلها.")
+                    }
+                    restarted = true
+                    service.restart(service.state["install"]?.hasPrefix("error:") == true ? "install" : worker)
+                }
+                if Date().timeIntervalSince(started) > (installing ? 900 : 180) {
+                    studio.activity = ""
+                    throw LinkError.message(name + " لم تجهز بعد. انتظر حتى تظهر «تعمل محليا» في البوابات المحلية ثم أعد الإرسال.")
+                }
+                try await Task.sleep(nanoseconds:500_000_000)
+            }
+        }
         func route(_ raw:String,_ data:[String:Any]) async throws -> Any {
             let uri = URLComponents(string:raw)
             let path = uri?.path ?? raw
@@ -170,7 +198,7 @@ private struct OriginalPage: UIViewRepresentable {
                 for p in studio.providers where p.enabled && p.style != .onDevice && !pairs.contains(where: { p.base == "http://127.0.0.1:\($0.3)/v1" }) {
                     gateways.append(["name":p.id.uuidString,"title":p.name,"type":"custom","up":true,"installed":true,"can_start":false,"default_model":p.model])
                 }
-                return ["version":"1.10.0","lang":"ar","brand":UserDefaults.standard.string(forKey:"display.brand") ?? "smarter","gateways":gateways,"project":studio.files.root.lastPathComponent,"project_id":studio.notebookID,"default_gateway":"omniroute","efforts":[""],"permission_modes":["default"],"default_permission_mode":"default","fast_model":"auto","visual":["available":false]] as [String:Any]
+                return ["version":"1.10.0","lang":"ar","brand":UserDefaults.standard.string(forKey:"display.brand") ?? "smarter","gateways":gateways,"project":studio.files.root.lastPathComponent,"notice":studio.message,"project_id":studio.notebookID,"default_gateway":"omniroute","efforts":[""],"permission_modes":["default"],"default_permission_mode":"default","fast_model":"auto","visual":["available":false]] as [String:Any]
             case "/mobile/options": open(.options); return [:] as [String:String]
             case "/api/accounts": return ["accounts":[["id":"default","name":"Default"]]]
             case "/api/auth": return ["loggedIn":false]
@@ -180,7 +208,12 @@ private struct OriginalPage: UIViewRepresentable {
                 return ["models":studio.providers.filter{$0.base==base}.map(\.model)]
             case "/api/gateway","/api/dashboard","/api/keys":
                 guard let pair = pairs.first(where:{$0.0 == (data["name"] as? String ?? gateway)}) else { throw LinkError.message("هذا المزود لا يملك لوحة بوابة محلية") }
-                if path == "/api/gateway" { service.set(pair.1,enabled:data["action"] as? String == "start") }
+                if path == "/api/gateway" {
+                    let start = data["action"] as? String == "start"
+                    if start, service.desired[pair.1] == true, service.failure(pair.1) != nil {
+                        service.restart(service.state["install"]?.hasPrefix("error:") == true ? "install" : pair.1)
+                    } else { service.set(pair.1,enabled:start) }
+                }
                 else {
                     if service.desired[pair.1] != true { service.set(pair.1,enabled:true) }
                     if path == "/api/keys" {
@@ -202,15 +235,15 @@ private struct OriginalPage: UIViewRepresentable {
                 if let pair=pairs.first(where:{$0.0==gateway}) {
                     let base="http://127.0.0.1:\(pair.3)/v1"
                     if service.state[pair.1] != "listening" {
-                        service.set(pair.1,enabled:true)
-                        for _ in 0..<90 {
-                            service.refresh()
-                            if service.state[pair.1]=="listening" { break }
-                            if (service.state[pair.1] ?? service.state["install"] ?? "").hasPrefix("error:") { break }
-                            try await Task.sleep(nanoseconds:500_000_000)
-                        }
+                        try await waitForGateway(pair.1,name:pair.2)
                     }
-                    var p = studio.providers.first{$0.base==base && $0.style == .gateway} ?? Provider(name:pair.2,base:base,model:"auto",style:.gateway,free:pair.1=="free")
+                    var p: Provider
+                    if let saved = studio.providers.first(where:{$0.base==base && $0.style == .gateway}) { p = saved }
+                    else {
+                        // Save the gateway as a provider so its key can be entered under Providers.
+                        p = Provider(name:pair.2,base:base,model:"auto",style:.gateway,free:pair.1=="free")
+                        try studio.addProvider(p)
+                    }
                     if let model=data["model"] as? String,!model.isEmpty {p.model=model}
                     chosen=p
                 } else if gateway=="apple" { chosen = .apple }

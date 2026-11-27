@@ -25,7 +25,7 @@ if (key.length !== 32 || key.toString('base64') !== code) throw new Error('Inval
 let session = randomUUID();
 async function ask(question) {
   const body = Buffer.from(JSON.stringify({ question, session }));
-  if (body.length > 65536) throw new Error('Question too long');
+  if (body.length > 1048576) throw new Error('Question too long');
   const header = Buffer.alloc(4);
   header.writeUInt32BE(body.length);
   // PSK-only cipher authenticates both peers using the secret from the iPad.

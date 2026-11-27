@@ -75,7 +75,7 @@ private func wifiAddress() -> String? {
         DispatchQueue.global().asyncAfter(deadline: .now() + 305, execute: deadline)
         defer { deadline.cancel(); peer.cancel(); peers[id] = nil }
         do {
-            let data = try await LocalLink.read(peer, limit: 65536)
+            let data = try await LocalLink.read(peer, limit: LocalLink.limit)
             let payload = try JSONDecoder().decode([String:String].self, from: data)
             guard let question = payload["question"] else { throw LinkError.message("السؤال فارغ") }
             let thread = payload["session"].flatMap(UUID.init(uuidString:))?.uuidString ?? UUID().uuidString
