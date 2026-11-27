@@ -42,8 +42,8 @@ targets:
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         SWIFT_VERSION: "5.0"
-        # FoundationModels exists only on iOS 26+; weak-link it so older iPadOS versions can launch.
-        OTHER_LDFLAGS: "$(inherited) -weak_framework FoundationModels"
+        # FoundationModels (iOS 26+) and Translation (iOS 17.4+) are optional; weak-link them so older iPadOS versions can launch.
+        OTHER_LDFLAGS: "$(inherited) -weak_framework FoundationModels -weak_framework Translation"
   FolderUITests:
     type: bundle.ui-testing
     platform: iOS

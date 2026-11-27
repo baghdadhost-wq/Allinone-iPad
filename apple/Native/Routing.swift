@@ -1,5 +1,4 @@
 import Foundation
-import FoundationModels
 import Security
 
 enum RouteMode: String, Codable, CaseIterable { case priority, freePool }
@@ -137,16 +136,7 @@ enum NativeAPI {
     }
 
     static func reply(_ provider: Provider, system: String, turns: [Turn]) async throws -> String {
-        if provider.style == .onDevice {
-            if #available(iOS 26, macOS 26, *) {
-                guard SystemLanguageModel.default.availability == .available else {
-                    throw LinkError.message("نموذج Apple غير متاح على الجهاز بهذه الإعدادات")
-                }
-                let prompt = turns.map { $0.role + ": " + $0.content }.joined(separator:"\n")
-                return try await LanguageModelSession(instructions: system).respond(to: prompt).content
-            }
-            throw LinkError.message("يتطلب النموذج المحلي iPadOS 26 أو أحدث")
-        }
+        if provider.style == .onDevice { return try await AppleModel.reply(system: system, turns: turns) }
         let request = try request(provider, key: Credentials.key(provider.id), system: system, turns: turns)
         let session = URLSession(configuration:.ephemeral, delegate:KeepOrigin(), delegateQueue:nil)
         defer { session.finishTasksAndInvalidate() }

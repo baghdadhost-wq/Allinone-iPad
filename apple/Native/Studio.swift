@@ -184,9 +184,11 @@ struct Notebook: Codable {
         let config = preferred.map { first in [first] + providers.filter { $0.id != first.id && $0.base != first.base } } ?? providers
         let selected:RouteMode = preferred == nil ? mode : .priority
         let switchOnFailure = allowFallback ?? failover
+        // Apple's on-device model has a small context, so it reads files in smaller parts.
+        let onDeviceFirst = config.first { $0.enabled && (selected != .freePool || $0.free) }?.style == .onDevice
         book.checkpoint = Checkpoint(prompt:prompt,thread:thread,task:task,mode:assistantMode)
         track("بدء الطلب")
-        let operation = Task { try await CodingAgent.run(prompt:prompt,history:history,notes:self.book.notes,files:self.files,mode:assistantMode,ask: { system,turns in
+        let operation = Task { try await CodingAgent.run(prompt:prompt,history:history,notes:self.book.notes,files:self.files,mode:assistantMode,readLimit:onDeviceFirst ? 5000 : nil,ask: { system,turns in
             try await self.router.respond(providers:config,mode:selected,system:system,turns:turns,failover:switchOnFailure) { provider,instructions,messages in
                 if assistantMode == .quick && provider.style != .onDevice {
                     return try await NativeAPI.stream(provider,system:instructions,turns:messages) { draft in
