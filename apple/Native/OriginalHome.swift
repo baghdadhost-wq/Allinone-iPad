@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import FoundationModels
 
 enum MobilePanel: Int, Identifiable {
-    case options, connection, providers, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
+    case projectFolder, options, connection, providers, workspace, gateways, sessions, omniDashboard, freeDashboard, freeKeys
     var id: Int { rawValue }
 }
 
@@ -16,6 +16,7 @@ struct OriginalHome: View {
         OriginalPage(host:host,refreshCount:refreshCount,open:{ panel = $0 })
             .sheet(item:$panel,onDismiss:{ refreshCount += 1 }) { item in
                 switch item {
+                case .projectFolder: ProjectFolderPanel(studio:host.studio)
                 case .options:
                     NavigationStack {
                         List {
@@ -75,40 +76,12 @@ private struct OriginalPage: UIViewRepresentable {
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName:"mobile",contentWorld:.page)
     }
-    @MainActor final class Coordinator: NSObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, WKUIDelegate, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
+    @MainActor final class Coordinator: NSObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, WKUIDelegate {
         let host: Host
         let open: (MobilePanel)->Void
         weak var currentWeb: WKWebView?
         var lastRefresh = 0
         var page: URL?
-        private var folderSelection: CheckedContinuation<URL?, Never>?
-
-        private func chooseProject() async throws -> [String:Any] {
-            guard !studio.busy, studio.pending == nil else { throw LinkError.message("أكمل الطلب أو راجع التعديل قبل تغيير مجلد المشروع") }
-            guard folderSelection == nil, let web = currentWeb, let vc = presenter(web), !vc.isBeingDismissed else {
-                throw LinkError.message("تعذر فتح منتقي المجلدات الآن")
-            }
-            let picker = UIDocumentPickerViewController(forOpeningContentTypes:[.folder],asCopy:false)
-            picker.directoryURL = studio.files.root
-            picker.delegate = self
-            let selected: URL? = await withCheckedContinuation { continuation in
-                folderSelection = continuation
-                vc.present(picker,animated:true)
-                picker.presentationController?.delegate = self
-            }
-            guard let selected else { return ["cancelled":true] }
-            try studio.open(selected)
-            return ["project":studio.files.root.lastPathComponent,"project_id":studio.notebookID]
-        }
-        private func finishSelection(_ selected: URL?) {
-            let continuation = folderSelection
-            folderSelection = nil
-            continuation?.resume(returning:selected)
-        }
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls:[URL]) { finishSelection(urls.first) }
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { finishSelection(nil) }
-        func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { finishSelection(nil) }
-
         var studio: Studio { host.studio }
         init(host:Host,open:@escaping (MobilePanel)->Void) { self.host=host; self.open=open }
         func webView(_ webView:WKWebView,decidePolicyFor action:WKNavigationAction,decisionHandler:@escaping (WKNavigationActionPolicy)->Void) {
@@ -194,7 +167,10 @@ private struct OriginalPage: UIViewRepresentable {
                     open(pair.1 == "omni" ? .omniDashboard : .freeDashboard)
                 }
                 return ["ok":true,"url":"about:blank","notes":[]] as [String:Any]
-            case "/api/project": return try await chooseProject()
+            case "/api/project":
+                guard !studio.busy, studio.pending == nil else { throw LinkError.message("أكمل الطلب أو راجع التعديل قبل تغيير مجلد المشروع") }
+                open(.projectFolder)
+                return ["presented":true]
             case "/api/projects": if data["method"] as? String == "POST" { open(.workspace); throw LinkError.message("اختر مجلد المشروع من ملفات الجهاز") }; return ["projects":[]] as [String:Any]
             case "/api/chat":
                 guard let question = data["text"] as? String, !question.isEmpty else { throw LinkError.message("أدخل السؤال") }

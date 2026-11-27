@@ -32,13 +32,31 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: "8"
+        CURRENT_PROJECT_VERSION: "9"
         SWIFT_OBJC_BRIDGING_HEADER: MobileNode/MobileNode.h
         CLANG_CXX_LANGUAGE_STANDARD: "c++17"
-        MARKETING_VERSION: "0.8"
+        MARKETING_VERSION: "0.9"
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بأجهزتك وتشغيل مضيف Allinone على الشبكة المحلية"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UNIVERSAL_APP"
         INFOPLIST_KEY_UIFileSharingEnabled: YES
         INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace: YES
         SWIFT_VERSION: "5.0"
+  FolderUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [FolderUITests]
+    dependencies:
+      - target: Allinone
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone.folder-tests
+        TEST_TARGET_NAME: Allinone
+schemes:
+  Allinone:
+    build:
+      targets:
+        Allinone: all
+    test:
+      targets: [FolderUITests]

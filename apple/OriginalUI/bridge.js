@@ -45,7 +45,7 @@
   async function chooseProject() {
     try {
       const folder = await native('/api/project');
-      if (!folder.cancelled) syncProject(folder);
+      if (folder.project_id) syncProject(folder);
     } catch (error) {
       banner(error.message || String(error), true);
     }
