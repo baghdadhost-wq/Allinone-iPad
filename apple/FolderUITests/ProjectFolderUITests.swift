@@ -44,6 +44,14 @@ final class ProjectFolderUITests: XCTestCase {
         let closed = XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:open)
         XCTAssertEqual(XCTWaiter.wait(for:[closed],timeout:20),.completed,app.debugDescription)
         XCTAssertFalse(app.buttons["confirmProjectFolder"].exists,app.debugDescription)
-        XCTAssertTrue(chosen.isHittable,app.debugDescription)
+        // Files can start at the provider root instead of the requested directory.
+        let active = app.webViews.buttons.matching(NSPredicate(format:"label BEGINSWITH %@ OR label BEGINSWITH %@",
+                                                               "مجلد المشروع: ","Project folder: ")).firstMatch
+        XCTAssertTrue(active.waitForExistence(timeout:15),app.debugDescription)
+        XCTAssertTrue(active.isHittable,app.debugDescription)
+        let selectedLabel = active.label
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.webViews.buttons[selectedLabel].waitForExistence(timeout:30),app.debugDescription)
     }
 }
