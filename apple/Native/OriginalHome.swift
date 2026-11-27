@@ -127,6 +127,7 @@ private struct OriginalPage: UIViewRepresentable {
                     let reopened = Studio()
                     let saved = try reopened.files.read("test.txt")
                     guard reopened.notebookID == studio.notebookID, saved == Data("folder-write-ok".utf8) else { return }
+                    try studio.open(docs.appendingPathComponent("Workspace",isDirectory:true))
                     let marker = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("original-ui-passed")
                     try Data().write(to:marker)
                 } catch { NSLog("Original UI check: %@",error.localizedDescription) }

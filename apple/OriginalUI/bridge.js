@@ -41,6 +41,8 @@
       newChat(false);
     }
     showProject();
+    const label = document.documentElement.lang === 'ar' ? 'مجلد المشروع' : 'Project folder';
+    document.getElementById('projectBtn').setAttribute('aria-label', label + ': ' + folder.project);
   }
   async function chooseProject() {
     try {

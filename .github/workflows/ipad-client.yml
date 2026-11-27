@@ -80,6 +80,10 @@ jobs:
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Allinone.app Payload/
           zip -qry Allinone-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Allinone-unsigned
+          path: Allinone-unsigned.ipa
       - name: Boot both upstream gateways inside the iOS app
         run: bash apple/MobileNode/simulator.sh
       - name: Exercise coding sessions, project writes and routing
@@ -90,7 +94,4 @@ jobs:
         run: |
           swiftc -o /tmp/local-link-check AllinoneClient.swiftpm/LocalLink.swift apple/Tests/LocalLinkCheck.swift
           /tmp/local-link-check
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Allinone-unsigned
-          path: Allinone-unsigned.ipa
+

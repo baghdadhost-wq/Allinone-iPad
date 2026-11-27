@@ -32,7 +32,11 @@ for n in {1..120}; do
     python3 -c 'import json; [json.load(open(p)) for p in ("/tmp/free-ping","/tmp/omni-ping")]'
     echo "Original UI sent and displayed the fixture answer. FreeLLMAPI and OmniRoute returned JSON from the iOS simulator."
     xcrun simctl terminate "$device" "$id"
-    xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination "id=$device" -derivedDataPath build-sim ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -parallel-testing-enabled NO -only-testing:FolderUITests test
+    mkdir -p "$data/Documents/Workspace/Empty Project"
+    xcodebuild -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination "id=$device" -derivedDataPath build-sim ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -parallel-testing-enabled NO -only-testing:FolderUITests -resultBundlePath /tmp/FolderCheck.xcresult test || {
+      xcrun xcresulttool get test-results summary --path /tmp/FolderCheck.xcresult
+      exit 1
+    }
     exit 0
   fi
   if test -f "$state"; then cat "$state"; if grep -q '"error:' "$state"; then break; fi; fi
