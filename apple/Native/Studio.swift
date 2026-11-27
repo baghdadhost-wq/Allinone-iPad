@@ -30,7 +30,7 @@ struct Notebook: Codable {
     }
     @Published var served = ""
     private let router = NativeRouter()
-    private var notebookID = "builtin"
+    private(set) var notebookID = "builtin"
     private var scopedURL: URL?
     private var pendingThread: String?
     private var pendingTask: UUID?
@@ -88,8 +88,9 @@ struct Notebook: Codable {
             if let data = defaults.data(forKey:"project.bookmark"), let id = defaults.string(forKey:"project.identifier") {
                 var stale = false
                 if let url = try? URL(resolvingBookmarkData:data,options:[],relativeTo:nil,bookmarkDataIsStale:&stale),
-                   url.startAccessingSecurityScopedResource() {
-                    scopedURL = url; files = ProjectFiles(root:url); notebookID = id
+                   Self.isInsideDocuments(url) || url.startAccessingSecurityScopedResource() {
+                    scopedURL = Self.isInsideDocuments(url) ? nil : url
+                    files = ProjectFiles(root:url); notebookID = id
                     if stale { defaults.set(try url.bookmarkData(options:.minimalBookmark,includingResourceValuesForKeys:nil,relativeTo:nil),forKey:"project.bookmark") }
                 }
             }
@@ -98,24 +99,35 @@ struct Notebook: Codable {
     }
     deinit { scopedURL?.stopAccessingSecurityScopedResource() }
 
+    private static func isInsideDocuments(_ url: URL) -> Bool {
+        let documents = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+            .resolvingSymlinksInPath().standardizedFileURL.path
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        return path == documents || path.hasPrefix(documents + "/")
+    }
+
     func open(_ url: URL) throws {
         guard !busy, pending == nil else { throw LinkError.message("أكمل الجلسة ومراجعة التعديل قبل تغيير المشروع") }
         if url.standardizedFileURL == files.root.standardizedFileURL { return }
-        let access = url.startAccessingSecurityScopedResource()
-        guard access else { throw LinkError.message("تعذر الوصول إلى المجلد المختار") }
+        let local = Self.isInsideDocuments(url)
+        let access = !local && url.startAccessingSecurityScopedResource()
+        guard local || access else { throw LinkError.message("تعذر الوصول إلى المجلد المختار") }
         do {
+            let properties = try url.resourceValues(forKeys:[.isDirectoryKey,.isWritableKey])
+            guard properties.isDirectory == true, properties.isWritable != false else { throw LinkError.message("اختر مجلدا يسمح بحفظ الملفات") }
             let data = try url.bookmarkData(options:.minimalBookmark,includingResourceValuesForKeys:nil,relativeTo:nil)
             let next = ProjectFiles(root:url); _ = try next.list("")
             var ids = UserDefaults.standard.dictionary(forKey:"project.ids") as? [String:String] ?? [:]
-            let id = ids[url.standardizedFileURL.path] ?? UUID().uuidString
+            let builtin = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Workspace")
+            let id = url.resolvingSymlinksInPath().standardizedFileURL.path == builtin.resolvingSymlinksInPath().standardizedFileURL.path ? "builtin" : ids[url.standardizedFileURL.path] ?? UUID().uuidString
             let nextBook = try notebook(id)
             ids[url.standardizedFileURL.path] = id
             UserDefaults.standard.set(ids,forKey:"project.ids")
             UserDefaults.standard.set(data,forKey:"project.bookmark")
             UserDefaults.standard.set(id,forKey:"project.identifier")
             scopedURL?.stopAccessingSecurityScopedResource()
-            undoChange = nil; scopedURL = url; notebookID = id; files = next; book = nextBook; served = ""; message = ""
-        } catch { url.stopAccessingSecurityScopedResource(); throw error }
+            undoChange = nil; scopedURL = access ? url : nil; notebookID = id; files = next; book = nextBook; served = ""; message = ""
+        } catch { if access { url.stopAccessingSecurityScopedResource() }; throw error }
     }
     private func notebook(_ id: String) throws -> Notebook {
         let url = storage.appendingPathComponent(id + ".json")

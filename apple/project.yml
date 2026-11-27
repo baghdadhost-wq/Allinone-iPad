@@ -32,10 +32,10 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: app.baghdadhost.allinone
         TARGETED_DEVICE_FAMILY: "1,2"
-        CURRENT_PROJECT_VERSION: "7"
+        CURRENT_PROJECT_VERSION: "8"
         SWIFT_OBJC_BRIDGING_HEADER: MobileNode/MobileNode.h
         CLANG_CXX_LANGUAGE_STANDARD: "c++17"
-        MARKETING_VERSION: "0.7"
+        MARKETING_VERSION: "0.8"
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "الاتصال بأجهزتك وتشغيل مضيف Allinone على الشبكة المحلية"
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UNIVERSAL_APP"

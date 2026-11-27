@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import UniformTypeIdentifiers
 import FoundationModels
 
 enum MobilePanel: Int, Identifiable {
@@ -10,9 +11,10 @@ enum MobilePanel: Int, Identifiable {
 struct OriginalHome: View {
     @StateObject private var host = Host()
     @State private var panel: MobilePanel?
+    @State private var refreshCount = 0
     var body: some View {
-        OriginalPage(host:host,open:{ panel = $0 })
-            .sheet(item:$panel) { item in
+        OriginalPage(host:host,refreshCount:refreshCount,open:{ panel = $0 })
+            .sheet(item:$panel,onDismiss:{ refreshCount += 1 }) { item in
                 switch item {
                 case .options:
                     NavigationStack {
@@ -47,6 +49,7 @@ struct OriginalHome: View {
 
 private struct OriginalPage: UIViewRepresentable {
     let host: Host
+    let refreshCount: Int
     let open: (MobilePanel)->Void
     func makeCoordinator() -> Coordinator { Coordinator(host:host,open:open) }
     func makeUIView(context: Context) -> WKWebView {
@@ -64,15 +67,48 @@ private struct OriginalPage: UIViewRepresentable {
         web.loadFileURL(page,allowingReadAccessTo:page.deletingLastPathComponent())
         return web
     }
-    func updateUIView(_ webView: WKWebView, context: Context) {}
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.lastRefresh != refreshCount else { return }
+        context.coordinator.lastRefresh = refreshCount
+        webView.evaluateJavaScript("if (typeof refreshState === 'function') { void refreshState(); }",completionHandler:nil)
+    }
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName:"mobile",contentWorld:.page)
     }
-    @MainActor final class Coordinator: NSObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, WKUIDelegate {
+    @MainActor final class Coordinator: NSObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, WKUIDelegate, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
         let host: Host
         let open: (MobilePanel)->Void
         weak var currentWeb: WKWebView?
+        var lastRefresh = 0
         var page: URL?
+        private var folderSelection: CheckedContinuation<URL?, Never>?
+
+        private func chooseProject() async throws -> [String:Any] {
+            guard !studio.busy, studio.pending == nil else { throw LinkError.message("أكمل الطلب أو راجع التعديل قبل تغيير مجلد المشروع") }
+            guard folderSelection == nil, let web = currentWeb, let vc = presenter(web), !vc.isBeingDismissed else {
+                throw LinkError.message("تعذر فتح منتقي المجلدات الآن")
+            }
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes:[.folder],asCopy:false)
+            picker.directoryURL = studio.files.root
+            picker.delegate = self
+            let selected: URL? = await withCheckedContinuation { continuation in
+                folderSelection = continuation
+                vc.present(picker,animated:true)
+                picker.presentationController?.delegate = self
+            }
+            guard let selected else { return ["cancelled":true] }
+            try studio.open(selected)
+            return ["project":studio.files.root.lastPathComponent,"project_id":studio.notebookID]
+        }
+        private func finishSelection(_ selected: URL?) {
+            let continuation = folderSelection
+            folderSelection = nil
+            continuation?.resume(returning:selected)
+        }
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls:[URL]) { finishSelection(urls.first) }
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { finishSelection(nil) }
+        func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { finishSelection(nil) }
+
         var studio: Studio { host.studio }
         init(host:Host,open:@escaping (MobilePanel)->Void) { self.host=host; self.open=open }
         func webView(_ webView:WKWebView,decidePolicyFor action:WKNavigationAction,decisionHandler:@escaping (WKNavigationActionPolicy)->Void) {
@@ -109,6 +145,15 @@ private struct OriginalPage: UIViewRepresentable {
                     """
                     let value = try await web.callAsyncJavaScript(script,arguments:["provider":provider.id.uuidString],in:nil,contentWorld:.page)
                     guard value as? Bool == true else { return }
+                    let docs = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+                    let folder = docs.appendingPathComponent(UUID().uuidString,isDirectory:true)
+                    try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:false)
+                    try studio.open(folder)
+                    let edit = try studio.files.propose(path:"test.txt",replacement:"folder-write-ok",reason:"test",previouslyRead:[:])
+                    try studio.files.apply(edit)
+                    let reopened = Studio()
+                    let saved = try reopened.files.read("test.txt")
+                    guard reopened.notebookID == studio.notebookID, saved == Data("folder-write-ok".utf8) else { return }
                     let marker = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("original-ui-passed")
                     try Data().write(to:marker)
                 } catch { NSLog("Original UI check: %@",error.localizedDescription) }
@@ -129,7 +174,7 @@ private struct OriginalPage: UIViewRepresentable {
                 for p in studio.providers where p.enabled && p.style != .onDevice && !pairs.contains(where: { p.base == "http://127.0.0.1:\($0.3)/v1" }) {
                     gateways.append(["name":p.id.uuidString,"title":p.name,"type":"custom","up":true,"installed":true,"can_start":false,"default_model":p.model])
                 }
-                return ["version":"1.10.0","lang":"ar","brand":UserDefaults.standard.string(forKey:"display.brand") ?? "smarter","gateways":gateways,"project":studio.files.root.lastPathComponent,"default_gateway":"omniroute","efforts":[""],"permission_modes":["default"],"default_permission_mode":"default","fast_model":"auto","visual":["available":false]] as [String:Any]
+                return ["version":"1.10.0","lang":"ar","brand":UserDefaults.standard.string(forKey:"display.brand") ?? "smarter","gateways":gateways,"project":studio.files.root.lastPathComponent,"project_id":studio.notebookID,"default_gateway":"omniroute","efforts":[""],"permission_modes":["default"],"default_permission_mode":"default","fast_model":"auto","visual":["available":false]] as [String:Any]
             case "/mobile/options": open(.options); return [:] as [String:String]
             case "/api/accounts": return ["accounts":[["id":"default","name":"Default"]]]
             case "/api/auth": return ["loggedIn":false]
@@ -149,7 +194,7 @@ private struct OriginalPage: UIViewRepresentable {
                     open(pair.1 == "omni" ? .omniDashboard : .freeDashboard)
                 }
                 return ["ok":true,"url":"about:blank","notes":[]] as [String:Any]
-            case "/api/project": open(.workspace); return ["path":studio.files.root.lastPathComponent]
+            case "/api/project": return try await chooseProject()
             case "/api/projects": if data["method"] as? String == "POST" { open(.workspace); throw LinkError.message("اختر مجلد المشروع من ملفات الجهاز") }; return ["projects":[]] as [String:Any]
             case "/api/chat":
                 guard let question = data["text"] as? String, !question.isEmpty else { throw LinkError.message("أدخل السؤال") }

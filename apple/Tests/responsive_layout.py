@@ -9,13 +9,23 @@ ui = Path(__file__).resolve().parents[1] / "OriginalUI"
 server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(ui)))
 Thread(target=server.serve_forever, daemon=True).start()
 
+folder = {"project":"Workspace", "project_id":"builtin"}
+picker_calls = 0
+
 def native(payload):
+    global picker_calls
     path = payload["path"].split("?")[0]
+    if path == "/api/project":
+        picker_calls += 1
+        if picker_calls == 1:
+            return {"cancelled":True}
+        folder.update(project="My files",project_id="chosen-folder")
+        return dict(folder)
     if path == "/api/state":
         names = ["OmniRoute", "FreeLLMAPI", "Apple Intelligence"]
         return dict(version="1.10.0", lang="ar", brand="smarter", default_gateway=names[0],
                     gateways=[dict(name=n, title=n, installed=True, up=True, can_start=True) for n in names],
-                    project="Workspace", efforts=[""], permission_modes=["default"])
+                    **folder, efforts=[""], permission_modes=["default"])
     return {"accounts": [], "projects": [], "conversations": [], "models": []}
 
 def check_frame(page, selector):
@@ -29,6 +39,8 @@ try:
     with sync_playwright() as pw:
         browser = pw.webkit.launch()
         for lang in ("ar", "en"):
+            folder.update(project="Workspace",project_id="builtin")
+            picker_calls = 0
             page = browser.new_page()
             page.expose_function("mobileReply", native)
             page.add_init_script(script="window.webkit={messageHandlers:{mobile:{postMessage:v=>mobileReply(v)}}};" +
@@ -64,6 +76,17 @@ try:
                     page.locator("#newChat").click()
                     assert not page.locator("#sidebar").is_visible()
                 print(lang,width,height,"passed",flush=True)
+            button = page.locator("#projectBtn")
+            page.evaluate("S.conv=42")
+            button.click()
+            page.wait_for_timeout(100)
+            assert page.evaluate("S.conv") == 42 and "Workspace" in button.inner_text()
+            button.click()
+            page.wait_for_function("S.project === 'My files' && S.conv === null")
+            assert "My files" in button.inner_text()
+            page.reload()
+            page.wait_for_function("document.querySelector('#projectBtn').textContent.includes('My files')")
+            print(lang,"folder selection, cancellation and restart passed",flush=True)
             page.close()
         browser.close()
 finally:

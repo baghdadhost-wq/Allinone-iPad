@@ -9,6 +9,7 @@
       if (options.body && typeof options.body !== 'string') throw Error('افتح ملفات المشروع من إعدادات الجهاز');
       const body = options.body ? JSON.parse(options.body) : {};
       const data = await native(url,{...body,method:options.method || 'GET'});
+      if (url === '/api/state') syncProject(data);
       if (url !== '/api/chat') return json(data);
       const part = {kind:'text',text:data.answer};
       const events = [{type:'conversation',id:data.id},{type:'text',text:data.answer},{type:'saved',meta:{parts:[part]}}];
@@ -25,6 +26,30 @@
     native('/api/conversations/'+encodeURIComponent(conversation.dataset.id)+'/export')
       .catch(error=>window.alert(error.message));
   },true);
+  let activeProject;
+  function syncProject(folder) {
+    if (!folder.project || !folder.project_id) return;
+    const switched = activeProject !== undefined && activeProject !== folder.project_id;
+    activeProject = folder.project_id;
+    LS.set('project', folder.project);
+    S.project = folder.project;
+    if (switched) {
+      S.savedFolder = null;
+      S.pview = null;
+      S.handoffFrom = null;
+      setTab('chats');
+      newChat(false);
+    }
+    showProject();
+  }
+  async function chooseProject() {
+    try {
+      const folder = await native('/api/project');
+      if (!folder.cancelled) syncProject(folder);
+    } catch (error) {
+      banner(error.message || String(error), true);
+    }
+  }
   function installLayout() {
     const byId = id => document.getElementById(id);
     const app = byId('app'), sidebar = byId('sidebar'), main = app.querySelector('main');
@@ -99,6 +124,19 @@
   }
   window.addEventListener('DOMContentLoaded',()=>{
     installLayout();
+    document.getElementById('projectBtn').onclick = chooseProject;
+    // The Files picker can open an existing folder or create a new one.
+    document.addEventListener('click', event => {
+      if (event.target.closest('#pvNew') || (S.tab === 'projects' && event.target.closest('#newChat'))) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!document.getElementById('app').classList.contains('side-hidden') &&
+            getComputedStyle(document.getElementById('sidebar')).position === 'absolute') {
+          document.getElementById('drawerClose').click();
+        }
+        chooseProject();
+      }
+    }, true);
     const version=document.getElementById('ver');
     version.setAttribute('role','button'); version.tabIndex=0;
     version.title='إعدادات الجهاز والاتصال';
