@@ -127,6 +127,10 @@ struct Message:Identifiable {
 }
 @main struct PadLocalApp:App {
     @StateObject var chat=Chat()
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var attached = PLDebugAttached()
+    @State private var tunnelMessage = ""
     @State private var confirmDelete=false
     var body:some Scene {WindowGroup {NavigationStack {
         List {
@@ -145,7 +149,16 @@ struct Message:Identifiable {
                         Text("التخزين المتاح: "+sizeText(disk()))
                     }.monospacedDigit()
                 }
-                Toggle("CPU JIT التجريبي لعقوبة التكرار",isOn:$chat.jit).disabled(chat.busy || !PLDebugAttached())
+                Button("فتح LocalDevVPN للاتصال") {
+                    guard let url = URL(string: "localdevvpn://enable") else { return }
+                    openURL(url) { opened in
+                        tunnelMessage = opened ? "ارجع إلى PadLocal بعد الاتصال." : "تعذر فتح LocalDevVPN. تأكد من تثبيته."
+                    }
+                }.disabled(chat.busy)
+                if !tunnelMessage.isEmpty { Text(tunnelMessage).font(.footnote) }
+                Button("فحص اتصال المصحح") { attached = PLDebugAttached() }
+                Text(attached ? "المصحح متصل" : "بانتظار اتصال المصحح").font(.footnote)
+                Toggle("CPU JIT التجريبي لعقوبة التكرار",isOn:$chat.jit).disabled(chat.busy || (!attached && !chat.jit))
                 Text("الاستدلال يستخدم Metal. يتطلب خيار JIT مصححا متصلا وإذن تنفيذ من النظام.").font(.footnote)
             }
             Section("المحادثة المحلية"){
@@ -157,6 +170,9 @@ struct Message:Identifiable {
                 if !chat.status.isEmpty {Text(chat.status).font(.footnote)}
             }
         }.navigationTitle("PadLocal")
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { attached = PLDebugAttached() }
+        }
         .confirmationDialog("حذف أوزان هذا النموذج؟",isPresented:$confirmDelete){Button("حذف",role:.destructive){chat.remove()}}
     }.environment(\.layoutDirection,.rightToLeft)}}
 }
