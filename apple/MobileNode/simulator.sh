@@ -3,7 +3,7 @@ set -euo pipefail
 device=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"];print(next(v["udid"] for k,vs in sorted(d.items(),reverse=True) if ".iOS-" in k for v in vs if v["name"].startswith("iPhone")))')
 xcrun simctl boot "$device" || xcrun simctl list devices booted | grep -F "$device"
 xcrun simctl bootstatus "$device" -b
-xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination "id=$device" -derivedDataPath build-sim build
+xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination "id=$device" -derivedDataPath build-sim ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build
 app=build-sim/Build/Products/Release-iphonesimulator/Allinone.app
 id=app.baghdadhost.allinone
 xcrun simctl install "$device" "$app"
@@ -32,7 +32,7 @@ for n in {1..120}; do
     python3 -c 'import json; [json.load(open(p)) for p in ("/tmp/free-ping","/tmp/omni-ping")]'
     echo "Original UI sent and displayed the fixture answer. FreeLLMAPI and OmniRoute returned JSON from the iOS simulator."
     xcrun simctl terminate "$device" "$id"
-    xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination "id=$device" -derivedDataPath build-sim -parallel-testing-enabled NO -only-testing:FolderUITests test
+    xcodebuild -quiet -project apple/Allinone.xcodeproj -scheme Allinone -configuration Release -destination "id=$device" -derivedDataPath build-sim ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -parallel-testing-enabled NO -only-testing:FolderUITests test
     exit 0
   fi
   if test -f "$state"; then cat "$state"; if grep -q '"error:' "$state"; then break; fi; fi
